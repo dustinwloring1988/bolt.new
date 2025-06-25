@@ -75,8 +75,11 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   const [animationScope, animate] = useAnimate();
 
+  const [model, setModel] = useState('claude-3-5-sonnet-20241022');
+
   const { messages, isLoading, input, handleInputChange, setInput, stop, append } = useChat({
     api: '/api/chat',
+    body: { model },
     onError: (error) => {
       logger.error('Request failed\n\n', error);
       toast.error('There was an error processing your request');
@@ -229,6 +232,8 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
           scrollTextArea();
         });
       }}
+      model={model}
+      onModelChange={setModel}
     />
   );
 });

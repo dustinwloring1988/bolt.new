@@ -24,6 +24,8 @@ interface BaseChatProps {
   sendMessage?: (event: React.UIEvent, messageInput?: string) => void;
   handleInputChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   enhancePrompt?: () => void;
+  model: string;
+  onModelChange: (model: string) => void;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -35,6 +37,11 @@ const EXAMPLE_PROMPTS = [
 ];
 
 const TEXTAREA_MIN_HEIGHT = 76;
+
+const CLAUDE_MODELS = [
+  { label: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20241022' },
+  { label: 'Claude 3.7 Sonnet', value: 'claude-3-7-sonnet-20250219' },
+];
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
   (
@@ -53,6 +60,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       handleInputChange,
       enhancePrompt,
       handleStop,
+      model,
+      onModelChange,
     },
     ref,
   ) => {
@@ -148,8 +157,8 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       />
                     )}
                   </ClientOnly>
-                  <div className="flex justify-between text-sm p-4 pt-2">
-                    <div className="flex gap-1 items-center">
+                  <div className="flex justify-between text-sm p-4 pt-2 items-center">
+                    <div className="flex gap-2 items-center">
                       <IconButton
                         title="Enhance prompt"
                         disabled={input.length === 0 || enhancingPrompt}
@@ -172,6 +181,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           </>
                         )}
                       </IconButton>
+                      {/* Model selector dropdown - now to the right of the enhance button */}
+                      <select
+                        className="bg-bolt-elements-background-depth-1 border border-bolt-elements-borderColor rounded px-2 py-1 text-sm text-bolt-elements-textPrimary focus:outline-none"
+                        value={model}
+                        onChange={e => onModelChange(e.target.value)}
+                        style={{ minWidth: 140 }}
+                      >
+                        {CLAUDE_MODELS.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
                     </div>
                     {input.length > 3 ? (
                       <div className="text-xs text-bolt-elements-textTertiary">

@@ -1,9 +1,9 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 
-export function getAnthropicModel(apiKey: string) {
+export function getAnthropicModel(apiKey: string, model?: string) {
   const anthropic = createAnthropic({
     apiKey,
   });
 
-  return anthropic('claude-3-5-sonnet-20241022');
+  return anthropic(model || 'claude-3-5-sonnet-20241022');
 }
