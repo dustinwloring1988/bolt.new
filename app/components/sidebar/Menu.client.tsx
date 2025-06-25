@@ -5,7 +5,7 @@ import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
-import { db, deleteById, getAll, chatId, type ChatHistoryItem } from '~/lib/persistence';
+import { db, deleteById, getAll, chatId, type ChatHistoryItem, getMessagesById, setMessages } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 
@@ -49,14 +49,11 @@ export function Menu() {
 
   const deleteItem = useCallback((event: React.UIEvent, item: ChatHistoryItem) => {
     event.preventDefault();
-
     if (db) {
       deleteById(db, item.id)
         .then(() => {
           loadEntries();
-
           if (chatId.get() === item.id) {
-            // hard page navigation to clear the stores
             window.location.pathname = '/';
           }
         })
@@ -66,6 +63,20 @@ export function Menu() {
         });
     }
   }, []);
+
+  const renameItem = useCallback(async (item: ChatHistoryItem, newName: string) => {
+    if (!db) return;
+    try {
+      // Get the latest messages and urlId for this chat
+      const chat = await getMessagesById(db, item.id);
+      await setMessages(db, item.id, chat.messages, chat.urlId, newName);
+      loadEntries();
+      toast.success('Chat renamed!');
+    } catch (error: any) {
+      toast.error('Failed to rename chat');
+      logger.error(error);
+    }
+  }, [db, loadEntries]);
 
   const closeDialog = () => {
     setDialogContent(null);
@@ -127,7 +138,7 @@ export function Menu() {
                   {category}
                 </div>
                 {items.map((item) => (
-                  <HistoryItem key={item.id} item={item} onDelete={() => setDialogContent({ type: 'delete', item })} />
+                  <HistoryItem key={item.id} item={item} onDelete={() => setDialogContent({ type: 'delete', item })} onRename={renameItem} />
                 ))}
               </div>
             ))}
