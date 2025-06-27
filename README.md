@@ -1,6 +1,6 @@
 [![Bolt: Make a full website using natual langage](./public/social_preview_index.jpg)](https://github.com/dustinwloring1988/bolt.new)
 
-# Bolt: AI-Powered Full-Stack Web Development in the Browser
+# Bolt: Make a full website using natual langage
 
 Bolt is an AI-powered web development agent that lets you prompt, run, edit, and deploy full-stack applications directly from your browser—no local setup required. If you're here to build your own AI-powered web dev agent using the Bolt open source codebase, [click here to get started!](./CONTRIBUTING.md)
 
