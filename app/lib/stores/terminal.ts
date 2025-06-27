@@ -9,17 +9,23 @@ export class TerminalStore {
   #terminals: Array<{ terminal: ITerminal; process: WebContainerProcess }> = [];
 
   showTerminal: WritableAtom<boolean> = import.meta.hot?.data.showTerminal ?? atom(false);
+  showBoltTerminal: WritableAtom<boolean> = import.meta.hot?.data.showBoltTerminal ?? atom(false);
 
   constructor(webcontainerPromise: Promise<WebContainer>) {
     this.#webcontainer = webcontainerPromise;
 
     if (import.meta.hot) {
       import.meta.hot.data.showTerminal = this.showTerminal;
+      import.meta.hot.data.showBoltTerminal = this.showBoltTerminal;
     }
   }
 
   toggleTerminal(value?: boolean) {
     this.showTerminal.set(value !== undefined ? value : !this.showTerminal.get());
+  }
+
+  toggleBoltTerminal(value?: boolean) {
+    this.showBoltTerminal.set(value !== undefined ? value : !this.showBoltTerminal.get());
   }
 
   async attachTerminal(terminal: ITerminal) {

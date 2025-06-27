@@ -3,11 +3,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
-import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
+import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle, SettingsDialog } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { db, deleteById, getAll, chatId, type ChatHistoryItem } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
+import { workbenchStore } from '~/lib/stores/workbench';
+import JSZip from 'jszip';
+import { IconButton } from '~/components/ui/IconButton';
+
+declare global {
+  interface Window {
+    syncSupabaseEnv?: (url: string, key: string) => Promise<void>;
+  }
+}
 
 const menuVariants = {
   closed: {
@@ -37,6 +46,16 @@ export function Menu() {
   const [list, setList] = useState<ChatHistoryItem[]>([]);
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitial, setSettingsInitial] = useState({ netlify: '', supabase: '', vercel: '', github: '' });
+  const [supabaseDialogOpen, setSupabaseDialogOpen] = useState(false);
+  const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('bolt_supabase_url') || '');
+  const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('bolt_supabase_key') || '');
+  const [supabaseToken, setSupabaseToken] = useState(localStorage.getItem('bolt_supabase_token') || '');
+  const [projects, setProjects] = useState<{ id: string; name: string; db_host: string; }[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [status, setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
+  const [error, setError] = useState<string>('');
 
   const loadEntries = useCallback(() => {
     if (db) {
@@ -97,6 +116,99 @@ export function Menu() {
       window.removeEventListener('mousemove', onMouseMove);
     };
   }, []);
+
+  useEffect(() => {
+    if (settingsOpen) {
+      setSettingsInitial({
+        netlify: localStorage.getItem('bolt_token_netlify') || '',
+        supabase: localStorage.getItem('bolt_token_supabase') || '',
+        vercel: localStorage.getItem('bolt_token_vercel') || '',
+        github: localStorage.getItem('bolt_token_github') || '',
+      });
+    }
+  }, [settingsOpen]);
+
+  useEffect(() => {
+    // Check connection status on mount or when credentials change
+    async function checkStatus() {
+      setError('');
+      if (supabaseUrl && supabaseKey) {
+        try {
+          // Try a simple Supabase API call
+          const res = await fetch(`${supabaseUrl}/rest/v1/?apikey=${supabaseKey}`);
+          if (res.ok) {
+            setStatus('connected');
+          } else {
+            setStatus('error');
+            setError('Invalid Supabase credentials or URL.');
+          }
+        } catch (e) {
+          setStatus('error');
+          setError('Could not connect to Supabase.');
+        }
+      } else {
+        setStatus('not_connected');
+      }
+    }
+    checkStatus();
+  }, [supabaseUrl, supabaseKey]);
+
+  function handleSettingsSave(tokens: { netlify: string; supabase: string; vercel: string; github: string }) {
+    localStorage.setItem('bolt_token_netlify', tokens.netlify);
+    localStorage.setItem('bolt_token_supabase', tokens.supabase);
+    localStorage.setItem('bolt_token_vercel', tokens.vercel);
+    localStorage.setItem('bolt_token_github', tokens.github);
+    setSettingsOpen(false);
+  }
+
+  async function fetchProjects(token: string) {
+    setError('');
+    setProjects([]);
+    setSelectedProject('');
+    try {
+      const res = await fetch('https://api.supabase.com/v1/projects', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch projects.');
+      const data = await res.json();
+      // Type guard: ensure data is an array of projects
+      if (Array.isArray(data) && data.every(p => p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.db_host === 'string')) {
+        setProjects(data);
+      } else {
+        setProjects([]);
+        setError('Unexpected response from Supabase API.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to fetch projects.');
+      setProjects([]);
+    }
+  }
+
+  function handleProjectSelect(id: string) {
+    setSelectedProject(id);
+    const project = projects.find(p => p.id === id);
+    if (project) {
+      setSupabaseUrl(`https://${project.db_host}`);
+      // Key must be entered manually or fetched via another API if permissions allow
+    }
+  }
+
+  async function handleSupabaseSave() {
+    setError('');
+    localStorage.setItem('bolt_supabase_url', supabaseUrl);
+    localStorage.setItem('bolt_supabase_key', supabaseKey);
+    localStorage.setItem('bolt_supabase_token', supabaseToken);
+    setSupabaseDialogOpen(false);
+    if (window.syncSupabaseEnv) {
+      try {
+        await window.syncSupabaseEnv(supabaseUrl, supabaseKey);
+        setStatus('connected');
+      } catch (e: any) {
+        setStatus('error');
+        setError(e.message || 'Failed to sync with WebContainer.');
+      }
+    }
+  }
 
   return (
     <motion.div
@@ -163,9 +275,111 @@ export function Menu() {
           </DialogRoot>
         </div>
         <div className="flex items-center border-t border-bolt-elements-borderColor p-4">
+          <IconButton
+            className="mr-2"
+            icon="i-ph:gear-six-duotone"
+            size="xl"
+            title="Settings"
+            onClick={() => setSettingsOpen(true)}
+          />
           <ThemeSwitch className="ml-auto" />
+          <SettingsDialog
+            open={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            initialValues={settingsInitial}
+            onSave={handleSettingsSave}
+          />
         </div>
       </div>
     </motion.div>
   );
+}
+
+// Utility to get Netlify token from localStorage
+export function getNetlifyToken() {
+  return localStorage.getItem('bolt_token_netlify') || '';
+}
+
+async function getAllFilesForDeploy() {
+  // Save all files first to ensure latest content
+  await workbenchStore.saveAllFiles();
+  const fileMap = workbenchStore.files.get();
+  const files: { [key: string]: string } = {};
+  for (const [path, dirent] of Object.entries(fileMap)) {
+    if (dirent?.type === 'file' && !dirent.isBinary) {
+      files[path.startsWith('/') ? path.slice(1) : path] = dirent.content;
+    }
+  }
+  return files;
+}
+
+async function createProjectZip(files: { [key: string]: string }): Promise<Blob> {
+  const zip = new JSZip();
+  for (const [path, content] of Object.entries(files)) {
+    zip.file(path, content);
+  }
+  return await zip.generateAsync({ type: 'blob' });
+}
+
+export async function deployToVercel() {
+  const token = getVercelToken();
+  if (!token) {
+    toast.error('Vercel token not set. Please add it in settings.');
+    return;
+  }
+  const files = await getAllFilesForDeploy();
+  const zipBlob = await createProjectZip(files);
+  toast.info('Deploying to Vercel...');
+  try {
+    const formData = new FormData();
+    formData.append('file', zipBlob, 'project.zip');
+    formData.append('name', 'bolt-project');
+    // Vercel API expects a JSON file map, but for demo, we send a zip as a file upload (for real use, may need to use their CLI or API with file map)
+    const res = await fetch('https://api.vercel.com/v13/deployments', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    const data: any = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'Vercel deploy failed');
+    toast.success(<span>Deployed to Vercel: <a href={`https://${data.url}`} target="_blank" rel="noopener noreferrer">{data.url}</a></span>, { autoClose: false });
+  } catch (e) {
+    toast.error('Vercel deploy failed: ' + (e instanceof Error ? e.message : e));
+  }
+}
+
+export async function deployToNetlify() {
+  const token = getNetlifyToken();
+  if (!token) {
+    toast.error('Netlify token not set. Please add it in settings.');
+    return;
+  }
+  const files = await getAllFilesForDeploy();
+  const zipBlob = await createProjectZip(files);
+  toast.info('Deploying to Netlify...');
+  try {
+    const formData = new FormData();
+    formData.append('file', zipBlob, 'project.zip');
+    formData.append('name', 'bolt-project');
+    // Netlify API expects a zip upload for some endpoints; for demo, we send as file upload (for real use, may need to use their CLI or API with file map)
+    const res = await fetch('https://api.netlify.com/api/v1/sites', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    const data: any = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Netlify deploy failed');
+    toast.success(<span>Deployed to Netlify: <a href={data.ssl_url} target="_blank" rel="noopener noreferrer">{data.ssl_url}</a></span>, { autoClose: false });
+  } catch (e) {
+    toast.error('Netlify deploy failed: ' + (e instanceof Error ? e.message : e));
+  }
+}
+
+// Utility to get Vercel token from localStorage
+export function getVercelToken() {
+  return localStorage.getItem('bolt_token_vercel') || '';
 }

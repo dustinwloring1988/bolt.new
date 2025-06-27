@@ -23,6 +23,7 @@ import { classNames } from '~/utils/classNames';
 import { WORK_DIR } from '~/utils/constants';
 import { renderLogger } from '~/utils/logger';
 import { isMobile } from '~/utils/mobile';
+import { BoltTerminal } from './terminal/BoltTerminal';
 
 interface EditorPanelProps {
   files?: FileMap;
@@ -55,7 +56,8 @@ export const EditorPanel = memo(
     onEditorScroll,
     onFileSave,
     onFileReset,
-  }: EditorPanelProps) => {
+    terminalTabs,
+  }: EditorPanelProps & { terminalTabs: { active: 'bolt' | number, setActive: (tab: 'bolt' | number) => void, count: number, setCount: (n: number) => void, boltOutputBuffer: string[] } }) => {
     renderLogger.trace('EditorPanel');
 
     const theme = useStore(themeStore);
@@ -65,8 +67,7 @@ export const EditorPanel = memo(
     const terminalPanelRef = useRef<ImperativePanelHandle>(null);
     const terminalToggledByShortcut = useRef(false);
 
-    const [activeTerminal, setActiveTerminal] = useState(0);
-    const [terminalCount, setTerminalCount] = useState(1);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const activeFileSegments = useMemo(() => {
       if (!editorDocument) {
@@ -115,13 +116,6 @@ export const EditorPanel = memo(
       terminalToggledByShortcut.current = false;
     }, [showTerminal]);
 
-    const addTerminal = () => {
-      if (terminalCount < MAX_TERMINALS) {
-        setTerminalCount(terminalCount + 1);
-        setActiveTerminal(terminalCount);
-      }
-    };
-
     return (
       <PanelGroup direction="vertical">
         <Panel defaultSize={showTerminal ? DEFAULT_EDITOR_SIZE : 100} minSize={20}>
@@ -132,6 +126,15 @@ export const EditorPanel = memo(
                   <div className="i-ph:tree-structure-duotone shrink-0" />
                   Files
                 </PanelHeader>
+                <div className="p-2 border-b border-bolt-elements-borderColor">
+                  <input
+                    type="text"
+                    className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 text-sm"
+                    placeholder="Search files or content..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                  />
+                </div>
                 <FileTree
                   className="h-full"
                   files={files}
@@ -140,6 +143,10 @@ export const EditorPanel = memo(
                   rootFolder={WORK_DIR}
                   selectedFile={selectedFile}
                   onFileSelect={onFileSelect}
+                  lockedFiles={workbenchStore.lockedFiles}
+                  onLockFile={workbenchStore.lockFile.bind(workbenchStore)}
+                  onUnlockFile={workbenchStore.unlockFile.bind(workbenchStore)}
+                  searchQuery={searchQuery}
                 />
               </div>
             </Panel>
@@ -167,7 +174,7 @@ export const EditorPanel = memo(
               <div className="h-full flex-1 overflow-hidden">
                 <CodeMirrorEditor
                   theme={theme}
-                  editable={!isStreaming && editorDocument !== undefined}
+                  editable={!isStreaming && editorDocument !== undefined && (!selectedFile || !workbenchStore.isFileLocked(selectedFile))}
                   settings={editorSettings}
                   doc={editorDocument}
                   autoFocusOnDocumentChange={!isMobile()}
@@ -175,6 +182,14 @@ export const EditorPanel = memo(
                   onChange={onEditorChange}
                   onSave={onFileSave}
                 />
+                {selectedFile && workbenchStore.isFileLocked(selectedFile) && (
+                  <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center z-10 pointer-events-none">
+                    <div className="flex flex-col items-center">
+                      <span className="i-ph:lock-key-duotone text-3xl mb-2 text-white" />
+                      <span className="text-white font-semibold">This file is locked</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </Panel>
           </PanelGroup>
@@ -199,9 +214,22 @@ export const EditorPanel = memo(
           <div className="h-full">
             <div className="bg-bolt-elements-terminals-background h-full flex flex-col">
               <div className="flex items-center bg-bolt-elements-background-depth-2 border-y border-bolt-elements-borderColor gap-1.5 min-h-[34px] p-2">
-                {Array.from({ length: terminalCount }, (_, index) => {
-                  const isActive = activeTerminal === index;
-
+                <button
+                  className={classNames(
+                    'flex items-center text-sm cursor-pointer gap-1.5 px-3 py-2 h-full whitespace-nowrap rounded-full',
+                    {
+                      'bg-bolt-elements-terminals-buttonBackground text-bolt-elements-textPrimary': terminalTabs.active === 'bolt',
+                      'bg-bolt-elements-background-depth-2 text-bolt-elements-textSecondary hover:bg-bolt-elements-terminals-buttonBackground':
+                        terminalTabs.active !== 'bolt',
+                    },
+                  )}
+                  onClick={() => terminalTabs.setActive('bolt')}
+                >
+                  <div className="i-ph:cpu text-lg" />
+                  Bolt Terminal
+                </button>
+                {Array.from({ length: terminalTabs.count }, (_, index) => {
+                  const isActive = terminalTabs.active === index;
                   return (
                     <button
                       key={index}
@@ -213,14 +241,16 @@ export const EditorPanel = memo(
                             !isActive,
                         },
                       )}
-                      onClick={() => setActiveTerminal(index)}
+                      onClick={() => terminalTabs.setActive(index)}
                     >
                       <div className="i-ph:terminal-window-duotone text-lg" />
-                      Terminal {terminalCount > 1 && index + 1}
+                      Terminal {terminalTabs.count > 1 ? index + 1 : ''}
                     </button>
                   );
                 })}
-                {terminalCount < MAX_TERMINALS && <IconButton icon="i-ph:plus" size="md" onClick={addTerminal} />}
+                {terminalTabs.count < MAX_TERMINALS && (
+                  <IconButton icon="i-ph:plus" size="md" onClick={() => terminalTabs.setCount(terminalTabs.count + 1)} />
+                )}
                 <IconButton
                   className="ml-auto"
                   icon="i-ph:caret-down"
@@ -229,24 +259,28 @@ export const EditorPanel = memo(
                   onClick={() => workbenchStore.toggleTerminal(false)}
                 />
               </div>
-              {Array.from({ length: terminalCount }, (_, index) => {
-                const isActive = activeTerminal === index;
-
-                return (
-                  <Terminal
-                    key={index}
-                    className={classNames('h-full overflow-hidden', {
-                      hidden: !isActive,
-                    })}
-                    ref={(ref) => {
-                      terminalRefs.current.push(ref);
-                    }}
-                    onTerminalReady={(terminal) => workbenchStore.attachTerminal(terminal)}
-                    onTerminalResize={(cols, rows) => workbenchStore.onTerminalResize(cols, rows)}
+              <div className="flex-1 overflow-hidden">
+                {terminalTabs.active === 'bolt' ? (
+                  <BoltTerminal
+                    className="h-full w-full"
                     theme={theme}
+                    outputBuffer={terminalTabs.boltOutputBuffer}
                   />
-                );
-              })}
+                ) : (
+                  Array.from({ length: terminalTabs.count }, (_, index) =>
+                    terminalTabs.active === index ? (
+                      <Terminal
+                        key={index}
+                        className="h-full w-full"
+                        ref={ref => { terminalRefs.current[index] = ref; }}
+                        onTerminalReady={terminal => workbenchStore.attachTerminal(terminal)}
+                        onTerminalResize={(cols, rows) => workbenchStore.onTerminalResize(cols, rows)}
+                        theme={theme}
+                      />
+                    ) : null
+                  )
+                )}
+              </div>
             </div>
           </div>
         </Panel>

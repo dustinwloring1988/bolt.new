@@ -33,3 +33,31 @@ if (!import.meta.env.SSR) {
     import.meta.hot.data.webcontainer = webcontainer;
   }
 }
+
+export async function syncSupabaseEnv(url: string, key: string) {
+  const container = await webcontainer;
+  // Write .env file
+  await container.fs.writeFile('.env', `SUPABASE_URL=${url}\nSUPABASE_KEY=${key}\n`);
+  // Check if @supabase/supabase-js is installed
+  let pkgJson;
+  try {
+    pkgJson = JSON.parse(await container.fs.readFile('package.json', 'utf8'));
+  } catch {
+    pkgJson = { dependencies: {} };
+  }
+  if (!pkgJson.dependencies || !pkgJson.dependencies['@supabase/supabase-js']) {
+    // Install package
+    const proc = await container.spawn('pnpm', ['add', '@supabase/supabase-js']);
+    await proc.exit;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.syncSupabaseEnv = syncSupabaseEnv;
+}
+
+declare global {
+  interface Window {
+    syncSupabaseEnv?: (url: string, key: string) => Promise<void>;
+  }
+}

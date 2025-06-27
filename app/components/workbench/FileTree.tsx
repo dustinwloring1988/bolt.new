@@ -1,7 +1,9 @@
-import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useState, type ReactNode, useCallback } from 'react';
 import type { FileMap } from '~/lib/stores/files';
 import { classNames } from '~/utils/classNames';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
+import * as ContextMenu from '@radix-ui/react-context-menu';
+import { workbenchStore } from '~/lib/stores/workbench';
 
 const logger = createScopedLogger('FileTree');
 
@@ -18,6 +20,10 @@ interface Props {
   allowFolderSelection?: boolean;
   hiddenFiles?: Array<string | RegExp>;
   unsavedFiles?: Set<string>;
+  lockedFiles?: Set<string>;
+  onLockFile?: (filePath: string) => void;
+  onUnlockFile?: (filePath: string) => void;
+  searchQuery?: string;
   className?: string;
 }
 
@@ -33,6 +39,10 @@ export const FileTree = memo(
     hiddenFiles,
     className,
     unsavedFiles,
+    lockedFiles = new Set(),
+    onLockFile,
+    onUnlockFile,
+    searchQuery,
   }: Props) => {
     renderLogger.trace('FileTree');
 
@@ -47,6 +57,10 @@ export const FileTree = memo(
         ? new Set(fileList.filter((item) => item.kind === 'folder').map((item) => item.fullPath))
         : new Set<string>();
     });
+
+    const handleContextMenu = useCallback((fileOrFolder: any, e: React.MouseEvent) => {
+      // No-op: ContextMenu handles open/position
+    }, []);
 
     useEffect(() => {
       if (collapsed) {
@@ -68,33 +82,22 @@ export const FileTree = memo(
     }, [fileList, collapsed]);
 
     const filteredFileList = useMemo(() => {
-      const list = [];
-
+      let list = [];
       let lastDepth = Number.MAX_SAFE_INTEGER;
-
       for (const fileOrFolder of fileList) {
         const depth = fileOrFolder.depth;
-
-        // if the depth is equal we reached the end of the collaped group
-        if (lastDepth === depth) {
-          lastDepth = Number.MAX_SAFE_INTEGER;
-        }
-
-        // ignore collapsed folders
-        if (collapsedFolders.has(fileOrFolder.fullPath)) {
-          lastDepth = Math.min(lastDepth, depth);
-        }
-
-        // ignore files and folders below the last collapsed folder
-        if (lastDepth < depth) {
-          continue;
-        }
-
+        if (lastDepth === depth) lastDepth = Number.MAX_SAFE_INTEGER;
+        if (collapsedFolders.has(fileOrFolder.fullPath)) lastDepth = Math.min(lastDepth, depth);
+        if (lastDepth < depth) continue;
         list.push(fileOrFolder);
       }
-
+      // Filter by search query (file name only for now)
+      if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        list = list.filter(item => item.kind === 'file' && item.name.toLowerCase().includes(q));
+      }
       return list;
-    }, [fileList, collapsedFolders]);
+    }, [fileList, collapsedFolders, searchQuery]);
 
     const toggleCollapseState = (fullPath: string) => {
       setCollapsedFolders((prevSet) => {
@@ -115,16 +118,64 @@ export const FileTree = memo(
         {filteredFileList.map((fileOrFolder) => {
           switch (fileOrFolder.kind) {
             case 'file': {
+              const isLocked = lockedFiles.has(fileOrFolder.fullPath);
               return (
-                <File
-                  key={fileOrFolder.id}
-                  selected={selectedFile === fileOrFolder.fullPath}
-                  file={fileOrFolder}
-                  unsavedChanges={unsavedFiles?.has(fileOrFolder.fullPath)}
-                  onClick={() => {
-                    onFileSelect?.(fileOrFolder.fullPath);
-                  }}
-                />
+                <ContextMenu.Root>
+                  <ContextMenu.Trigger asChild>
+                    <div>
+                      <File
+                        key={fileOrFolder.id}
+                        selected={selectedFile === fileOrFolder.fullPath}
+                        file={fileOrFolder}
+                        unsavedChanges={unsavedFiles?.has(fileOrFolder.fullPath)}
+                        locked={isLocked}
+                        onClick={() => {
+                          onFileSelect?.(fileOrFolder.fullPath);
+                        }}
+                        onContextMenu={(e) => handleContextMenu(fileOrFolder, e)}
+                      />
+                    </div>
+                  </ContextMenu.Trigger>
+                  <ContextMenu.Content className="bg-bolt-elements-background-depth-2 rounded shadow-lg border border-bolt-elements-borderColor p-1 min-w-[160px]">
+                    <ContextMenu.Item onSelect={() => { onFileSelect?.(fileOrFolder.fullPath); }}>
+                      Open
+                    </ContextMenu.Item>
+                    <ContextMenu.Item disabled={isLocked} onSelect={async () => {
+                      const newName = prompt('Enter new file name', fileOrFolder.fullPath.split('/').pop());
+                      if (newName && newName !== fileOrFolder.fullPath.split('/').pop()) {
+                        const newPath = fileOrFolder.fullPath.split('/').slice(0, -1).concat(newName).join('/');
+                        try {
+                          await workbenchStore.renameFile(fileOrFolder.fullPath, newPath);
+                        } catch (e) {
+                          alert((e as Error).message);
+                        }
+                      }
+                    }}>
+                      Rename
+                    </ContextMenu.Item>
+                    <ContextMenu.Item disabled={isLocked} onSelect={async () => {
+                      if (confirm('Are you sure you want to delete this file?')) {
+                        try {
+                          await workbenchStore.deleteFile(fileOrFolder.fullPath);
+                        } catch (e) {
+                          alert((e as Error).message);
+                        }
+                      }
+                    }}>
+                      Delete
+                    </ContextMenu.Item>
+                    <ContextMenu.Separator />
+                    {isLocked ? (
+                      <ContextMenu.Item onSelect={() => { onUnlockFile?.(fileOrFolder.fullPath); }}>
+                        Unlock
+                      </ContextMenu.Item>
+                    ) : (
+                      <ContextMenu.Item onSelect={() => { onLockFile?.(fileOrFolder.fullPath); }}>
+                        Lock
+                      </ContextMenu.Item>
+                    )}
+                  </ContextMenu.Content>
+                </ContextMenu.Root>
               );
             }
             case 'folder': {
@@ -145,6 +196,9 @@ export const FileTree = memo(
             }
           }
         })}
+        {filteredFileList.length === 0 && (searchQuery && searchQuery.trim() !== '') ? (
+          <div className="p-2 text-xs text-bolt-elements-textTertiary">No files found.</div>
+        ) : null}
       </div>
     );
   },
@@ -183,10 +237,12 @@ interface FileProps {
   file: FileNode;
   selected: boolean;
   unsavedChanges?: boolean;
+  locked: boolean;
   onClick: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
 }
 
-function File({ file: { depth, name }, onClick, selected, unsavedChanges = false }: FileProps) {
+function File({ file: { depth, name }, onClick, selected, unsavedChanges = false, locked }: FileProps) {
   return (
     <NodeButton
       className={classNames('group', {
@@ -206,6 +262,7 @@ function File({ file: { depth, name }, onClick, selected, unsavedChanges = false
       >
         <div className="flex-1 truncate pr-2">{name}</div>
         {unsavedChanges && <span className="i-ph:circle-fill scale-68 shrink-0 text-orange-500" />}
+        {locked && <span className="i-ph:lock-key-duotone scale-68 shrink-0 text-gray-500" />}
       </div>
     </NodeButton>
   );
@@ -407,3 +464,4 @@ function compareNodes(a: Node, b: Node): number {
 
   return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 }
+

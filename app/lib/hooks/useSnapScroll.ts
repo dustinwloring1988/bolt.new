@@ -7,6 +7,10 @@ export function useSnapScroll() {
   const observerRef = useRef<ResizeObserver | null>(null);
 
   const messageRef = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
     if (node) {
       const observer = new ResizeObserver(() => {
         if (autoScrollRef.current && scrollNodeRef.current) {
@@ -18,11 +22,8 @@ export function useSnapScroll() {
           });
         }
       });
-
       observer.observe(node);
-    } else {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
+      observerRef.current = observer;
     }
   }, []);
 

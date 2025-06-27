@@ -74,8 +74,16 @@ export class WorkbenchStore {
     return this.#terminalStore.showTerminal;
   }
 
+  get showBoltTerminal() {
+    return this.#terminalStore.showBoltTerminal;
+  }
+
   toggleTerminal(value?: boolean) {
     this.#terminalStore.toggleTerminal(value);
+  }
+
+  toggleBoltTerminal(value?: boolean) {
+    this.#terminalStore.toggleBoltTerminal(value);
   }
 
   attachTerminal(terminal: ITerminal) {
@@ -270,6 +278,30 @@ export class WorkbenchStore {
   #getArtifact(id: string) {
     const artifacts = this.artifacts.get();
     return artifacts[id];
+  }
+
+  get lockedFiles() {
+    return this.#filesStore.lockedFiles;
+  }
+
+  lockFile(path: string) {
+    this.#filesStore.lockFile(path);
+  }
+
+  unlockFile(path: string) {
+    this.#filesStore.unlockFile(path);
+  }
+
+  isFileLocked(path: string) {
+    return this.#filesStore.isFileLocked(path);
+  }
+
+  async renameFile(oldPath: string, newPath: string) {
+    await this.#filesStore.renameFile(oldPath, newPath);
+  }
+
+  async deleteFile(filePath: string) {
+    await this.#filesStore.deleteFile(filePath);
   }
 }
 

@@ -4,7 +4,7 @@ import type { PathWatcherEvent, WebContainer } from '@webcontainer/api';
 import { getEncoding } from 'istextorbinary';
 import { map, type MapStore } from 'nanostores';
 import { bufferWatchEvents } from '~/utils/buffer';
-import { WORK_DIR } from '~/utils/constants';
+import { WORK_DIR, LOCKED_FILES_KEY } from '~/utils/constants';
 import { computeFileModifications } from '~/utils/diff';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
@@ -41,6 +41,11 @@ export class FilesStore {
    * for the model to be aware of the changes.
    */
   #modifiedFiles: Map<string, string> = import.meta.hot?.data.modifiedFiles ?? new Map();
+
+  /**
+   * Set of locked file paths.
+   */
+  lockedFiles: Set<string> = this.#loadLockedFiles();
 
   /**
    * Map of files that matches the state of WebContainer.
@@ -194,6 +199,70 @@ export class FilesStore {
       console.log(error);
       return '';
     }
+  }
+
+  lockFile(path: string) {
+    this.lockedFiles.add(path);
+    this.#persistLockedFiles();
+  }
+
+  unlockFile(path: string) {
+    this.lockedFiles.delete(path);
+    this.#persistLockedFiles();
+  }
+
+  isFileLocked(path: string) {
+    return this.lockedFiles.has(path);
+  }
+
+  #persistLockedFiles() {
+    try {
+      localStorage.setItem(LOCKED_FILES_KEY, JSON.stringify(Array.from(this.lockedFiles)));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  #loadLockedFiles(): Set<string> {
+    if (typeof localStorage === 'undefined') return new Set();
+    try {
+      const data = localStorage.getItem(LOCKED_FILES_KEY);
+      if (data) {
+        return new Set(JSON.parse(data));
+      }
+    } catch (e) {
+      // ignore
+    }
+    return new Set();
+  }
+
+  async renameFile(oldPath: string, newPath: string) {
+    if (this.isFileLocked(oldPath)) {
+      throw new Error('File is locked');
+    }
+    const webcontainer = await this.#webcontainer;
+    await webcontainer.fs.rename(oldPath, newPath);
+    const file = this.getFile(oldPath);
+    if (file) {
+      this.files.setKey(newPath, file);
+      this.files.setKey(oldPath, undefined);
+    }
+    if (this.lockedFiles.has(oldPath)) {
+      this.lockedFiles.delete(oldPath);
+      this.lockedFiles.add(newPath);
+      this.#persistLockedFiles();
+    }
+  }
+
+  async deleteFile(filePath: string) {
+    if (this.isFileLocked(filePath)) {
+      throw new Error('File is locked');
+    }
+    const webcontainer = await this.#webcontainer;
+    await webcontainer.fs.rm(filePath);
+    this.files.setKey(filePath, undefined);
+    this.lockedFiles.delete(filePath);
+    this.#persistLockedFiles();
   }
 }
 

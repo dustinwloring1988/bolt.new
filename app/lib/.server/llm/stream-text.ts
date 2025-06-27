@@ -22,9 +22,10 @@ export type Messages = Message[];
 
 export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], 'model'>;
 
-export function streamText(messages: Messages, env: Env, options?: StreamingOptions) {
+export function streamText(messages: Messages, env: Env, options?: StreamingOptions & { modelId?: string }) {
+  const modelId = options?.modelId || 'claude-3-5-sonnet-20241022';
   return _streamText({
-    model: getAnthropicModel(getAPIKey(env)),
+    model: getAnthropicModel(getAPIKey(env), modelId),
     system: getSystemPrompt(),
     maxTokens: MAX_TOKENS,
     headers: {

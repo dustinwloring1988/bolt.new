@@ -33,6 +33,14 @@ export type ActionStateUpdate =
 
 type ActionsMap = MapStore<Record<string, ActionState>>;
 
+// Add a static/global output handler for AI shell output
+type ShellOutputHandler = (data: string) => void;
+let globalShellOutputHandler: ShellOutputHandler | null = null;
+
+export function setGlobalShellOutputHandler(handler: ShellOutputHandler | null) {
+  globalShellOutputHandler = handler;
+}
+
 export class ActionRunner {
   #webcontainer: Promise<WebContainer>;
   #currentExecutionPromise: Promise<void> = Promise.resolve();
@@ -139,6 +147,9 @@ export class ActionRunner {
     process.output.pipeTo(
       new WritableStream({
         write(data) {
+          if (globalShellOutputHandler) {
+            globalShellOutputHandler(data);
+          }
           console.log(data);
         },
       }),

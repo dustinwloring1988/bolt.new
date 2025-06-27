@@ -1,6 +1,6 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { motion, type Variants } from 'framer-motion';
-import React, { memo, type ReactNode } from 'react';
+import React, { memo, type ReactNode, useState } from 'react';
 import { IconButton } from './IconButton';
 import { classNames } from '~/utils/classNames';
 import { cubicEasingFn } from '~/utils/easings';
@@ -131,3 +131,73 @@ export const Dialog = memo(({ className, children, onBackdrop, onClose }: Dialog
     </RadixDialog.Portal>
   );
 });
+
+export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
+  open: boolean;
+  onClose: () => void;
+  initialValues?: Partial<{ netlify: string; supabase: string; vercel: string; github: string }>;
+  onSave?: (tokens: { netlify: string; supabase: string; vercel: string; github: string }) => void;
+}) {
+  const [tokens, setTokens] = useState({
+    netlify: initialValues.netlify || '',
+    supabase: initialValues.supabase || '',
+    vercel: initialValues.vercel || '',
+    github: initialValues.github || '',
+  });
+
+  return (
+    <RadixDialog.Root open={open}>
+      <Dialog onBackdrop={onClose} onClose={onClose}>
+        <DialogTitle>Service Tokens</DialogTitle>
+        <DialogDescription>
+          <div className="space-y-4">
+            <div>
+              <label className="block font-medium mb-1">Netlify Token</label>
+              <input
+                type="text"
+                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                value={tokens.netlify}
+                onChange={e => setTokens(t => ({ ...t, netlify: e.target.value }))}
+                placeholder="Enter Netlify token"
+              />
+            </div>
+            <div>
+              <label className="block font-medium mb-1">Supabase Token</label>
+              <input
+                type="text"
+                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                value={tokens.supabase}
+                onChange={e => setTokens(t => ({ ...t, supabase: e.target.value }))}
+                placeholder="Enter Supabase token"
+              />
+            </div>
+            <div>
+              <label className="block font-medium mb-1">Vercel Token</label>
+              <input
+                type="text"
+                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                value={tokens.vercel}
+                onChange={e => setTokens(t => ({ ...t, vercel: e.target.value }))}
+                placeholder="Enter Vercel token"
+              />
+            </div>
+            <div>
+              <label className="block font-medium mb-1">GitHub Token</label>
+              <input
+                type="text"
+                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                value={tokens.github}
+                onChange={e => setTokens(t => ({ ...t, github: e.target.value }))}
+                placeholder="Enter GitHub token"
+              />
+            </div>
+          </div>
+        </DialogDescription>
+        <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+          <DialogButton type="secondary" onClick={onClose}>Cancel</DialogButton>
+          <DialogButton type="primary" onClick={() => onSave?.(tokens)}>Save</DialogButton>
+        </div>
+      </Dialog>
+    </RadixDialog.Root>
+  );
+}

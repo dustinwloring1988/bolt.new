@@ -1,5 +1,5 @@
 import type { Message } from 'ai';
-import React, { type RefCallback } from 'react';
+import React, { type RefCallback, useState } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import styles from './BaseChat.module.scss';
 import { Messages } from './Messages.client';
@@ -24,6 +24,8 @@ interface BaseChatProps {
   sendMessage?: (event: React.UIEvent, messageInput?: string) => void;
   handleInputChange?: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   enhancePrompt?: () => void;
+  model?: string;
+  onModelChange?: (model: string) => void;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -53,10 +55,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       handleInputChange,
       enhancePrompt,
       handleStop,
+      model,
+      onModelChange,
     },
     ref,
   ) => {
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
+    const [selectedModel, setSelectedModel] = useState(model || 'claude-3-5-sonnet-20241022');
+
+    React.useEffect(() => {
+      onModelChange?.(selectedModel);
+    }, [selectedModel]);
 
     return (
       <div
@@ -102,6 +111,17 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   'sticky bottom-0': chatStarted,
                 })}
               >
+                {/* Model Picker */}
+                <div className="flex justify-end mb-1">
+                  <select
+                    className="border border-bolt-elements-borderColor rounded px-2 py-1 text-sm bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary"
+                    value={selectedModel}
+                    onChange={e => setSelectedModel(e.target.value)}
+                  >
+                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                    <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Max)</option>
+                  </select>
+                </div>
                 <div
                   className={classNames(
                     'shadow-sm border border-bolt-elements-borderColor bg-bolt-elements-prompt-background backdrop-filter backdrop-blur-[8px] rounded-lg overflow-hidden',

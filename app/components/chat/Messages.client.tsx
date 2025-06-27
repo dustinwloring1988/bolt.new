@@ -18,14 +18,14 @@ export const Messages = React.forwardRef<HTMLDivElement, MessagesProps>((props: 
     <div id={id} ref={ref} className={props.className}>
       {messages.length > 0
         ? messages.map((message, index) => {
-            const { role, content } = message;
+            const { role, content, id } = message;
             const isUserMessage = role === 'user';
             const isFirst = index === 0;
             const isLast = index === messages.length - 1;
-
+            const key = id || `${role}-${typeof content === 'string' ? content.slice(0, 20) : ''}-${index}`;
             return (
               <div
-                key={index}
+                key={key}
                 className={classNames('flex gap-4 p-6 w-full rounded-[calc(0.75rem-1px)]', {
                   'bg-bolt-elements-messages-background': isUserMessage || !isStreaming || (isStreaming && !isLast),
                   'bg-gradient-to-b from-bolt-elements-messages-background from-30% to-transparent':
