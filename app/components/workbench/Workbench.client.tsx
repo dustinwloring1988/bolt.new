@@ -21,6 +21,7 @@ import { DialogRoot, Dialog, DialogTitle, DialogDescription, DialogButton } from
 import { BoltTerminal } from './terminal/BoltTerminal';
 import { setGlobalShellOutputHandler } from '~/lib/runtime/action-runner';
 import JSZip from 'jszip';
+import { deployToNetlify, deployToVercel } from '~/components/sidebar/Menu.client';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -303,9 +304,8 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                   Connect Supabase
                   <span className={`ml-2 inline-block w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-400' : status === 'error' ? 'bg-red-400' : 'bg-gray-400'}`}></span>
                 </button>
-                <IconButton
-                  className="ml-2 flex items-center gap-2"
-                  size="xl"
+                <button
+                  className="ml-2 p-2 rounded hover:bg-green-100 text-green-700 border border-green-200 flex items-center"
                   title="Download Project as Zip"
                   onClick={async () => {
                     try {
@@ -326,9 +326,22 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     }
                   }}
                 >
-                  <div className="i-ph:download-simple-duotone text-xl" />
-                  <span>Download as Zip</span>
-                </IconButton>
+                  <span className="i-ph:download-simple-duotone text-xl mr-1" /> Download as Zip
+                </button>
+                <button
+                  className="ml-2 p-2 rounded hover:bg-green-100 text-green-700 border border-green-200 flex items-center"
+                  title="Deploy to Netlify"
+                  onClick={deployToNetlify}
+                >
+                  <span className="i-ph:rocket-launch-duotone text-xl mr-1" /> Deploy to Netlify
+                </button>
+                <button
+                  className="ml-2 p-2 rounded hover:bg-blue-100 text-blue-700 border border-blue-200 flex items-center"
+                  title="Deploy to Vercel"
+                  onClick={deployToVercel}
+                >
+                  <span className="i-ph:cloud-arrow-up-duotone text-xl mr-1" /> Deploy to Vercel
+                </button>
                 <DialogRoot open={supabaseDialogOpen}>
                   <Dialog onBackdrop={() => setSupabaseDialogOpen(false)} onClose={() => setSupabaseDialogOpen(false)}>
                     <DialogTitle>Connect to Supabase</DialogTitle>
