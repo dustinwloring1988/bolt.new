@@ -79,21 +79,40 @@ export async function fetchGitHubRepoFiles(repo: GitHubRepo): Promise<{ [path: s
   const headers = getAuthHeaders();
   
   try {
-    // First, get the repository tree
+    // First, get the branch reference to get the SHA
+    const branchResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${name}/branches/${branch}`,
+      { headers }
+    );
+    
+    if (!branchResponse.ok) {
+      if (branchResponse.status === 404) {
+        throw new Error(`Branch '${branch}' not found in repository ${owner}/${name}`);
+      }
+      throw new Error(`Failed to fetch branch: ${branchResponse.statusText}`);
+    }
+    
+    const branchData = await branchResponse.json() as { commit: { sha: string } };
+    const treeSha = branchData.commit.sha;
+    
+    // Now get the repository tree using the SHA
     const treeResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${name}/git/trees/${branch}?recursive=1`,
+      `https://api.github.com/repos/${owner}/${name}/git/trees/${treeSha}?recursive=1`,
       { headers }
     );
     
     if (!treeResponse.ok) {
+      if (treeResponse.status === 404) {
+        throw new Error(`Repository ${owner}/${name} not found or you don't have access`);
+      }
       throw new Error(`Failed to fetch repository tree: ${treeResponse.statusText}`);
     }
     
-    const treeData = await treeResponse.json();
+    const treeData = await treeResponse.json() as { tree: Array<{ type: string; path: string }> };
     const files: { [path: string]: string } = {};
     
     // Filter for files (not directories) and common file types
-    const fileNodes = treeData.tree.filter((item: any) => 
+    const fileNodes = treeData.tree.filter((item) => 
       item.type === 'blob' && 
       !item.path.includes('node_modules/') &&
       !item.path.startsWith('.git/') &&
@@ -109,7 +128,7 @@ export async function fetchGitHubRepoFiles(repo: GitHubRepo): Promise<{ [path: s
         );
         
         if (fileResponse.ok) {
-          const fileData = await fileResponse.json();
+          const fileData = await fileResponse.json() as { content?: string; encoding?: string };
           if (fileData.content && fileData.encoding === 'base64') {
             const content = atob(fileData.content);
             files[fileNode.path] = content;

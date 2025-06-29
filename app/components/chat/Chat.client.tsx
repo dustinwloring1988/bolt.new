@@ -110,6 +110,49 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
 
+  const runAnimation = async () => {
+    if (chatStarted) {
+      return;
+    }
+
+    await Promise.all([
+      animate('#examples', { opacity: 0, display: 'none' }, { duration: 0.1 }),
+      animate('#intro', { opacity: 0, flex: 1 }, { duration: 0.2, ease: cubicEasingFn }),
+    ]);
+
+    chatStore.setKey('started', true);
+
+    setChatStarted(true);
+  };
+
+  // Handle template parameter from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const templateParam = urlParams.get('template');
+    
+    if (templateParam && !chatStarted && messages.length === 0 && !isLoading) {
+      const decodedTemplate = decodeURIComponent(templateParam);
+      
+      // Set chat as started first
+      setChatStarted(true);
+      chatStore.setKey('started', true);
+      
+      // Run animation to transition from intro to chat
+      runAnimation();
+      
+      // Send the template prompt automatically
+      append({
+        role: 'user',
+        content: decodedTemplate,
+      });
+      
+      // Clean up the URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('template');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [chatStarted, messages.length, isLoading, append, runAnimation]);
+
   // Memoize the transformed messages to prevent unnecessary re-renders
   const transformedMessages = useMemo(() => {
     return messages.map((message, i) => {
@@ -170,21 +213,6 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       }
     }
   }, [input, textareaRef, TEXTAREA_MAX_HEIGHT]);
-
-  const runAnimation = async () => {
-    if (chatStarted) {
-      return;
-    }
-
-    await Promise.all([
-      animate('#examples', { opacity: 0, display: 'none' }, { duration: 0.1 }),
-      animate('#intro', { opacity: 0, flex: 1 }, { duration: 0.2, ease: cubicEasingFn }),
-    ]);
-
-    chatStore.setKey('started', true);
-
-    setChatStarted(true);
-  };
 
   const handleImageAttach = useCallback((files: FileList) => {
     const newImages: AttachedImage[] = [];

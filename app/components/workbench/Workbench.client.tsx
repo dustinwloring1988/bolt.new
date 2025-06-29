@@ -553,19 +553,6 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                   className={`ml-2 p-2 rounded flex items-center border ${
                     githubTokenValid === false 
                       ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'hover:bg-gray-100 text-gray-700 border-gray-200'
-                  }`}
-                  title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Clone from GitHub'}
-                  onClick={() => openGitHubDialog('clone')}
-                  disabled={githubTokenValid === false}
-                >
-                  <span className="i-ph:git-branch-duotone text-xl mr-1" /> Clone
-                  {githubTokenValid === false && <span className="ml-1 text-xs text-red-500">⚠</span>}
-                </button>
-                <button
-                  className={`ml-2 p-2 rounded flex items-center border ${
-                    githubTokenValid === false 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
                       : 'hover:bg-purple-100 text-purple-700 border-purple-200'
                   }`}
                   title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Push to GitHub'}
@@ -591,7 +578,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                 <DialogRoot open={supabaseDialogOpen}>
                   <Dialog onBackdrop={() => setSupabaseDialogOpen(false)} onClose={() => setSupabaseDialogOpen(false)}>
                     <DialogTitle>Connect to Supabase</DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription asChild>
                       <div className="space-y-4">
                         <div>
                           <label className="block font-medium mb-1">Supabase Access Token</label>
@@ -661,7 +648,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       {githubDialogType === 'push' && 'Push to GitHub Repository'}
                       {githubDialogType === 'create' && 'Create New GitHub Repository'}
                     </DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription asChild>
                       <div className="space-y-4">
                         {githubTokenValid === false && (
                           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">

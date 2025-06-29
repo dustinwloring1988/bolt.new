@@ -8,8 +8,6 @@ import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
 import { Workbench } from '~/components/workbench/Workbench.client';
 import { classNames } from '~/utils/classNames';
-import { STARTER_TEMPLATES } from '~/utils/templates';
-import { generateTemplatePrompt } from '~/utils/github';
 
 export interface AttachedImage {
   file: File;
@@ -299,41 +297,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             </div>
             {!chatStarted && (
               <>
-                {/* Starter Templates Section */}
-                <div className="relative w-full max-w-4xl mx-auto mt-8">
-                  <h2 className="text-xl font-semibold text-bolt-elements-textPrimary mb-4 text-center">
-                    Start with a Template
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4">
-                    {STARTER_TEMPLATES.map((template, index) => (
-                      <button
-                        key={index}
-                        onClick={(event) => {
-                          const prompt = generateTemplatePrompt(template);
-                          sendMessage?.(event, prompt);
-                        }}
-                        className="group flex flex-col p-4 border border-bolt-elements-borderColor rounded-lg bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 transition-all duration-200 text-left"
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className={`${template.icon} text-xl text-bolt-elements-textSecondary`} />
-                          <h3 className="font-medium text-bolt-elements-textPrimary">{template.label}</h3>
-                        </div>
-                        <p className="text-sm text-bolt-elements-textTertiary mb-3">{template.description}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {template.tags.slice(0, 3).map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-2 py-1 text-xs bg-bolt-elements-background-depth-1 text-bolt-elements-textTertiary rounded"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
                 {/* Example Prompts Section */}
                 <div id="examples" className="relative w-full max-w-xl mx-auto mt-8 flex justify-center">
                   <div className="flex flex-col space-y-2 [mask-image:linear-gradient(to_bottom,black_0%,transparent_180%)] hover:[mask-image:none]">

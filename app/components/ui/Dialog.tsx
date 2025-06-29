@@ -192,7 +192,7 @@ export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
       <RadixDialog.Root open={open}>
         <Dialog onBackdrop={onClose} onClose={onClose}>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>
+          <DialogDescription asChild>
             <div className="space-y-6">
               {/* Service Tokens Section */}
               <div>
@@ -278,7 +278,7 @@ export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
       <RadixDialog.Root open={chatManagementOpen}>
         <Dialog onBackdrop={() => setChatManagementOpen(false)} onClose={() => setChatManagementOpen(false)}>
           <DialogTitle>Delete All Chats?</DialogTitle>
-          <DialogDescription>
+          <DialogDescription asChild>
             <div>
               <p className="mb-3">
                 <strong>Warning:</strong> This action cannot be undone.

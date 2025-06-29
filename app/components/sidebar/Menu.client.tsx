@@ -17,6 +17,19 @@ import {
   createDeploymentErrorAlert
 } from '~/lib/stores/deploymentAlerts';
 import { deploymentStatusService, NetlifyStatusChecker, VercelStatusChecker } from '~/lib/services/deploymentStatus';
+import { STARTER_TEMPLATES } from '~/utils/templates';
+import { generateTemplatePrompt } from '~/utils/github';
+import {
+  parseGitHubRepo,
+  fetchGitHubRepoFiles,
+  pushFilesToGitHub,
+  createGitHubRepo,
+  getGitHubBranches,
+  getUserRepos,
+  validateGitHubToken,
+  type GitHubRepo,
+  type GitHubBranch,
+} from '~/utils/github';
 
 declare global {
   interface Window {
@@ -62,6 +75,24 @@ export function Menu() {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [status, setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
   const [error, setError] = useState<string>('');
+
+  // GitHub Integration State
+  const [githubDialogOpen, setGithubDialogOpen] = useState(false);
+  const [githubDialogType, setGithubDialogType] = useState<'clone' | 'push' | 'create'>('clone');
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [githubCommitMessage, setGithubCommitMessage] = useState('Update project files');
+  const [githubRepoName, setGithubRepoName] = useState('');
+  const [githubRepoDescription, setGithubRepoDescription] = useState('');
+  const [githubPrivateRepo, setGithubPrivateRepo] = useState(false);
+  const [githubBranches, setGithubBranches] = useState<GitHubBranch[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState('main');
+  const [userRepos, setUserRepos] = useState<any[]>([]);
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubError, setGithubError] = useState('');
+  const [githubTokenValid, setGithubTokenValid] = useState<boolean | null>(null);
+
+  // Template Modal State
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
   const loadEntries = useCallback(() => {
     if (db) {
@@ -159,11 +190,142 @@ export function Menu() {
     checkStatus();
   }, [supabaseUrl, supabaseKey]);
 
+  // GitHub Integration Functions
+  useEffect(() => {
+    // Check GitHub token validity on mount
+    const checkGitHubToken = async () => {
+      const token = getGitHubToken();
+      if (token) {
+        const isValid = await validateGitHubToken();
+        setGithubTokenValid(isValid);
+      } else {
+        setGithubTokenValid(false);
+      }
+    };
+    checkGitHubToken();
+  }, []);
+
+  const openGitHubDialog = (type: 'clone' | 'push' | 'create') => {
+    setGithubDialogType(type);
+    setGithubError('');
+    setGithubDialogOpen(true);
+    
+    if (type === 'push' && userRepos.length === 0) {
+      loadUserRepos();
+    }
+  };
+
+  const loadUserRepos = async () => {
+    try {
+      setGithubLoading(true);
+      const repos = await getUserRepos();
+      setUserRepos(repos);
+    } catch (error) {
+      setGithubError(error instanceof Error ? error.message : 'Failed to load repositories');
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const handleCloneRepository = async () => {
+    if (!githubRepoUrl.trim()) {
+      setGithubError('Please enter a repository URL');
+      return;
+    }
+
+    try {
+      setGithubLoading(true);
+      setGithubError('');
+      
+      console.log('Attempting to clone repository:', githubRepoUrl);
+      const repo = parseGitHubRepo(githubRepoUrl);
+      repo.branch = selectedBranch;
+      console.log('Parsed repository:', repo);
+      
+      const files = await fetchGitHubRepoFiles(repo);
+      console.log('Successfully fetched files:', Object.keys(files));
+      
+      // Clear existing files first
+      const currentFiles = workbenchStore.files.get();
+      for (const filePath of Object.keys(currentFiles)) {
+        await workbenchStore.deleteFile(filePath);
+      }
+      
+      // Add new files to the workbench
+      for (const [path, content] of Object.entries(files)) {
+        await workbenchStore.setCurrentDocumentContent(content);
+        await workbenchStore.saveFile(path);
+      }
+      
+      toast.success(`Successfully cloned ${repo.owner}/${repo.name}`);
+      setGithubDialogOpen(false);
+      setGithubRepoUrl('');
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to clone repository';
+      console.error('Clone error:', error);
+      
+      // Provide more specific error messages
+      if (errorMessage.includes('404')) {
+        setGithubError('Repository not found. Please check the repository URL and ensure it exists and is accessible.');
+      } else if (errorMessage.includes('403')) {
+        setGithubError('Access denied. The repository may be private or your token may not have the required permissions.');
+      } else if (errorMessage.includes('401')) {
+        setGithubError('Authentication failed. Please check your GitHub token in settings.');
+      } else {
+        setGithubError(`Failed to clone repository: ${errorMessage}`);
+      }
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const loadBranches = async (repoUrl: string) => {
+    try {
+      const repo = parseGitHubRepo(repoUrl);
+      const branches = await getGitHubBranches(repo);
+      setGithubBranches(branches);
+      if (branches.length > 0) {
+        setSelectedBranch(branches[0].name);
+      }
+    } catch (error) {
+      console.warn('Failed to load branches:', error);
+      setGithubBranches([]);
+      // Don't show error for branch loading as it's not critical
+      // The user can still proceed with the default branch
+    }
+  };
+
+  const handleTemplateSelect = (template: any) => {
+    const prompt = generateTemplatePrompt(template);
+    // Navigate to new chat with template prompt
+    window.location.href = `/?template=${encodeURIComponent(prompt)}`;
+    setTemplateDialogOpen(false);
+  };
+
   function handleSettingsSave(tokens: { netlify: string; supabase: string; vercel: string; github: string }) {
     localStorage.setItem('bolt_token_netlify', tokens.netlify);
     localStorage.setItem('bolt_token_supabase', tokens.supabase);
     localStorage.setItem('bolt_token_vercel', tokens.vercel);
     localStorage.setItem('bolt_token_github', tokens.github);
+    
+    // Re-validate GitHub token after saving
+    const checkGitHubToken = async () => {
+      if (tokens.github) {
+        const isValid = await validateGitHubToken();
+        setGithubTokenValid(isValid);
+        if (isValid) {
+          toast.success('GitHub token saved and validated successfully!');
+        } else {
+          toast.error('GitHub token saved but validation failed. Please check your token.');
+        }
+      } else {
+        setGithubTokenValid(false);
+        toast.info('Settings saved. GitHub token not provided.');
+      }
+    };
+    checkGitHubToken();
+    
     setSettingsOpen(false);
   }
 
@@ -226,7 +388,7 @@ export function Menu() {
     >
       <div className="flex items-center h-[var(--header-height)]">{/* Placeholder */}</div>
       <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <a
             href="/"
             className="flex gap-2 items-center bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme"
@@ -234,6 +396,32 @@ export function Menu() {
             <span className="inline-block i-bolt:chat scale-110" />
             Start new chat
           </a>
+          
+          {/* Clone Button */}
+          <button
+            className={`flex gap-2 items-center w-full rounded-md p-2 transition-theme ${
+              githubTokenValid === false 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover'
+            }`}
+            onClick={() => openGitHubDialog('clone')}
+            disabled={githubTokenValid === false}
+            title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Clone from GitHub'}
+          >
+            <span className="i-ph:git-branch-duotone scale-110" />
+            Clone from GitHub
+            {githubTokenValid === false && <span className="ml-1 text-xs text-red-500">⚠</span>}
+          </button>
+          
+          {/* Template Button */}
+          <button
+            className="flex gap-2 items-center w-full bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme"
+            onClick={() => setTemplateDialogOpen(true)}
+            title="Start with a template"
+          >
+            <span className="i-ph:file-text-duotone scale-110" />
+            Start with template
+          </button>
         </div>
         <div className="text-bolt-elements-textPrimary font-medium pl-6 pr-5 my-2">Your Chats</div>
         <div className="flex-1 overflow-scroll pl-4 pr-5 pb-5">
@@ -297,6 +485,125 @@ export function Menu() {
           />
         </div>
       </div>
+
+      {/* GitHub Clone Dialog */}
+      <DialogRoot open={githubDialogOpen}>
+        <Dialog onBackdrop={() => setGithubDialogOpen(false)} onClose={() => setGithubDialogOpen(false)}>
+          <DialogTitle>Clone Repository from GitHub</DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-4">
+              <p className="text-sm text-bolt-elements-textSecondary mb-4">
+                Clone a GitHub repository to start working with its files in the workbench. This will replace any existing files in your current project.
+              </p>
+              
+              {githubTokenValid === false && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-yellow-800 text-sm">
+                    GitHub token not set or invalid. Please add your GitHub token in settings.
+                  </p>
+                </div>
+              )}
+              
+              <div>
+                <label className="block font-medium mb-1">Repository URL</label>
+                <input
+                  type="text"
+                  className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                  value={githubRepoUrl}
+                  onChange={(e) => {
+                    setGithubRepoUrl(e.target.value);
+                    if (e.target.value.trim()) {
+                      loadBranches(e.target.value);
+                    }
+                  }}
+                  placeholder="e.g., owner/repo or https://github.com/owner/repo"
+                />
+                <p className="text-xs text-bolt-elements-textTertiary mt-1">
+                  Enter the repository URL in any format: owner/repo, https://github.com/owner/repo, or git@github.com:owner/repo
+                </p>
+              </div>
+              {githubBranches.length > 0 && (
+                <div>
+                  <label className="block font-medium mb-1">Branch</label>
+                  <select
+                    className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                    value={selectedBranch}
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                  >
+                    {githubBranches.map((branch) => (
+                      <option key={branch.name} value={branch.name}>{branch.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              {githubError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-800 text-sm">{githubError}</p>
+                </div>
+              )}
+            </div>
+          </DialogDescription>
+          <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+            <DialogButton type="secondary" onClick={() => setGithubDialogOpen(false)}>
+              Cancel
+            </DialogButton>
+            <DialogButton 
+              type="primary" 
+              onClick={() => {
+                if (githubLoading || githubTokenValid === false) return;
+                handleCloneRepository();
+              }}
+            >
+              {githubLoading ? 'Processing...' : 'Clone'}
+            </DialogButton>
+          </div>
+        </Dialog>
+      </DialogRoot>
+
+      {/* Template Selection Dialog */}
+      <DialogRoot open={templateDialogOpen}>
+        <Dialog onBackdrop={() => setTemplateDialogOpen(false)} onClose={() => setTemplateDialogOpen(false)}>
+          <DialogTitle>Start with a Template</DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-4">
+              <p className="text-sm text-bolt-elements-textSecondary mb-4">
+                Choose a template to start a new project. This will create a new chat with the template prompt and set up the project structure for you.
+              </p>
+              <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+                {STARTER_TEMPLATES.map((template, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleTemplateSelect(template)}
+                    className="group flex flex-col p-3 border border-bolt-elements-borderColor rounded-lg bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 transition-all duration-200 text-left"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`${template.icon} text-xl text-bolt-elements-textSecondary`} />
+                      <h3 className="font-medium text-bolt-elements-textPrimary">{template.label}</h3>
+                    </div>
+                    <p className="text-sm text-bolt-elements-textTertiary mb-2">{template.description}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {template.tags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 text-xs bg-bolt-elements-background-depth-1 text-bolt-elements-textTertiary rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogDescription>
+          <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+            <DialogButton type="secondary" onClick={() => setTemplateDialogOpen(false)}>
+              Cancel
+            </DialogButton>
+          </div>
+        </Dialog>
+      </DialogRoot>
     </motion.div>
   );
 }
