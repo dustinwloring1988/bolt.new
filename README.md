@@ -24,14 +24,16 @@ This version of Bolt introduces a suite of powerful features and improvements ov
 - **Discuss Mode**: Collaborate and discuss code or project ideas in a dedicated mode.
 - **Attach Images**: Add images to your projects and discussions for richer context and documentation.
 - **Rewind & Checkpoint**: Roll back your project to previous states or set checkpoints to save your progress.
+- **Mobile App Generation with Expo**: Generate and preview mobile apps using Expo, right from your browser.
+- **Enhanced UI** Add a glass efffect, editable chat titles.
+- **Enhanced Settings** Add settings for clearing all chats and exporting them.
+- **Deployment Alert System** Added a Deployment Alert System for when deploying to Vercel, Netlify, etc.
 
 ### ✨ Features Coming Soon 
 
-- **Mobile App Generation with Expo**: Generate and preview mobile apps using Expo, right from your browser.
 - **Use of Context & Summaries**: Allows the agent to have awearness of the code and its context, while summarizing to save tokens.
 - **Local Import**: Allow the import of local projects.
 - **Auto fix errors**: Auto detect and fix errors.
-- **Enhanced UI** Add a glass efffect, move buttons and update color scheme.
 
 ---
 

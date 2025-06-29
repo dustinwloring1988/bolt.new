@@ -2,18 +2,7 @@
 
 This plan details steps to implement new features in **bolt.new**, using examples from the **bolt.diy** repository’s merged pull requests and commits. Each feature section lists tasks and relevant code references from bolt.diy to guide implementation.
 
-## 1. Context Search & Long-Context Summarization
-
-Enable searching within project code and summarizing long conversations to manage context. Bolt.diy’s enhancements [PR #1191](github.com/stackblitz-labs/bolt.diy/pull/1191) & [PR #1091](github.com/stackblitz-labs/bolt.diy/pull/1091) & [PR #1538](https://github.com/stackblitz-labs/bolt.diy/pull/1538) added **Code Context selection** and **Project Summary** features. Implementation tasks include:
-
-* **Search Project Files:** Index or scan project files so the user can query “where is X defined?”. You may add a search bar that runs through the codebase (similar to bolt.diy’s “search codebase” feature in PR #1676).
-* **Context Picker:** Allow the user to select relevant file snippets to include in the prompt. Bolt.diy’s commits mention “code context selection” where users can choose files as context.
-* **Summarize Long Context:** Implement a function to automatically summarize long chat histories or code contexts. For example, after many messages, condense earlier parts into a summary using an LLM. Bolt.diy’s PR #1091 refers to “summary generation” to keep context manageable.
-* **Project Summary Prompt:** Add an option to generate a top-level summary of the entire project (as bolt.diy’s release notes describe “Project Summary Features”). This could be a button that asks the AI to explain the project.
-
-> Citations: See bolt.diy PRs #1191 and #1091 for adding code context selection and automatic summarization of long chats or project contents.
-
-## 2. Local Import of Project
+## 1. Local Import of Project
 
 Allow users to import a local project folder into the chat. The bolt.diy [PR #413](https://github.com/stackblitz-labs/bolt.diy/pull/413) & [PR #426] (https://github.com/stackblitz-labs/bolt.diy/pull/426) (“Folder Import”) demonstrates reading a directory, filtering files, and sending their contents as a chat artifact. Key steps from that PR include:
 
@@ -24,6 +13,17 @@ Allow users to import a local project folder into the chat. The bolt.diy [PR #41
 * **Send Import Command:** After collecting all files, dispatch a special “Import Files” request to the chat backend (e.g., send an assistant message with the `<boltAction>` payload). Bolt.diy’s code creates a new chat with description “Folder Import: \[name]” and includes the files as a single `assistant` message (see their chat import logic).
 
 > Citation: bolt.diy’s merged PR shows reading a folder, filtering out ignored patterns, and importing file contents into a new chat session.
+
+## 2. Context Search & Long-Context Summarization
+
+Enable searching within project code and summarizing long conversations to manage context. Bolt.diy’s enhancements [PR #1191](github.com/stackblitz-labs/bolt.diy/pull/1191) & [PR #1091](github.com/stackblitz-labs/bolt.diy/pull/1091) & [PR #1538](https://github.com/stackblitz-labs/bolt.diy/pull/1538) added **Code Context selection** and **Project Summary** features. Implementation tasks include:
+
+* **Search Project Files:** Index or scan project files so the user can query “where is X defined?”. You may add a search bar that runs through the codebase (similar to bolt.diy’s “search codebase” feature in PR #1676).
+* **Context Picker:** Allow the user to select relevant file snippets to include in the prompt. Bolt.diy’s commits mention “code context selection” where users can choose files as context.
+* **Summarize Long Context:** Implement a function to automatically summarize long chat histories or code contexts. For example, after many messages, condense earlier parts into a summary using an LLM. Bolt.diy’s PR #1091 refers to “summary generation” to keep context manageable.
+* **Project Summary Prompt:** Add an option to generate a top-level summary of the entire project (as bolt.diy’s release notes describe “Project Summary Features”). This could be a button that asks the AI to explain the project.
+
+> Citations: See bolt.diy PRs #1191 and #1091 for adding code context selection and automatic summarization of long chats or project contents.
 
 ## 3. Auto-Detect and Fix WebContainer Errors
 
@@ -53,7 +53,7 @@ Improve the default system prompts for better AI results, like in [PR #428](http
 
 Clean up the codebase by using React hooks and service modules. References: (https://github.com/stackblitz-labs/bolt.diy/pull/578),
 (https://github.com/stackblitz-labs/bolt.diy/commit/41e604c1dc5d5f7ffe8eb6246f273f84ae5852c9), (https://github.com/stackblitz-labs/bolt.diy/commit/de0a41b5f19e7dc63df7a916d653fd397891a798), (https://github.com/stackblitz-labs/bolt.diy/commit/cfc2fc75d8ad2bd1d7ea0864e918df15262671a4), (https://github.com/stackblitz-labs/bolt.diy/commit/b41691f6f28c2b9dd4818b5233076dd10c604f7c), 
-   (https://github.com/stackblitz-labs/bolt.diy/commit/2f09d512bc888358ae917ab35e603342fb367dfc)
+(https://github.com/stackblitz-labs/bolt.diy/commit/2f09d512bc888358ae917ab35e603342fb367dfc)
 Tasks include:
 
 * **Convert to Hooks:** Rewrite class or procedural components into functional components using hooks (`useState`, `useEffect`, etc.). For example, move chat logic out of components into custom hooks (such as `useChatStore`).
