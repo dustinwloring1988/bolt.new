@@ -176,6 +176,26 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     };
   }, []);
 
+  // Listen for integration dialog events from header
+  useEffect(() => {
+    const handleOpenSupabaseDialog = () => {
+      setSupabaseDialogOpen(true);
+    };
+
+    const handleOpenGitHubDialog = (event: CustomEvent) => {
+      setGithubDialogType(event.detail?.type || 'clone');
+      setGithubDialogOpen(true);
+    };
+
+    window.addEventListener('openSupabaseDialog', handleOpenSupabaseDialog);
+    window.addEventListener('openGitHubDialog', handleOpenGitHubDialog as EventListener);
+
+    return () => {
+      window.removeEventListener('openSupabaseDialog', handleOpenSupabaseDialog);
+      window.removeEventListener('openGitHubDialog', handleOpenGitHubDialog as EventListener);
+    };
+  }, []);
+
   async function fetchProjects(token: string) {
     setError('');
     setProjects([]);
@@ -501,80 +521,6 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
             <div className="h-full flex flex-col bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor shadow-sm rounded-lg overflow-hidden">
               <div className="flex items-center px-3 py-2 border-b border-bolt-elements-borderColor">
                 <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
-                <button
-                  className={`ml-3 rounded px-3 py-1 text-sm flex items-center ${status === 'connected' ? 'bg-green-600 text-white' : status === 'error' ? 'bg-red-600 text-white' : 'bg-gray-300 text-black'} hover:bg-green-700`}
-                  onClick={() => setSupabaseDialogOpen(true)}
-                  title="Connect Supabase"
-                >
-                  Connect Supabase
-                  <span className={`ml-2 inline-block w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-400' : status === 'error' ? 'bg-red-400' : 'bg-gray-400'}`}></span>
-                </button>
-                <button
-                  className="ml-2 p-2 rounded hover:bg-green-100 text-green-700 border border-green-200 flex items-center"
-                  title="Download Project as Zip"
-                  onClick={async () => {
-                    try {
-                      const files = await getAllFilesForDeploy();
-                      const zipBlob = await createProjectZip(files);
-                      const url = URL.createObjectURL(zipBlob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'project.zip';
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }, 100);
-                    } catch (e) {
-                      toast.error('Failed to download zip: ' + (e instanceof Error ? e.message : e));
-                    }
-                  }}
-                >
-                  <span className="i-ph:download-simple-duotone text-xl mr-1" /> Download as Zip
-                </button>
-                <button
-                  className="ml-2 p-2 rounded hover:bg-green-100 text-green-700 border border-green-200 flex items-center"
-                  title="Deploy to Netlify"
-                  onClick={deployToNetlify}
-                >
-                  <span className="i-ph:rocket-launch-duotone text-xl mr-1" /> Deploy to Netlify
-                </button>
-                <button
-                  className="ml-2 p-2 rounded hover:bg-blue-100 text-blue-700 border border-blue-200 flex items-center"
-                  title="Deploy to Vercel"
-                  onClick={deployToVercel}
-                >
-                  <span className="i-ph:cloud-arrow-up-duotone text-xl mr-1" /> Deploy to Vercel
-                </button>
-                
-                {/* GitHub Integration Buttons */}
-                <button
-                  className={`ml-2 p-2 rounded flex items-center border ${
-                    githubTokenValid === false 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'hover:bg-purple-100 text-purple-700 border-purple-200'
-                  }`}
-                  title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Push to GitHub'}
-                  onClick={() => openGitHubDialog('push')}
-                  disabled={githubTokenValid === false}
-                >
-                  <span className="i-ph:git-commit-duotone text-xl mr-1" /> Push
-                  {githubTokenValid === false && <span className="ml-1 text-xs text-red-500">⚠</span>}
-                </button>
-                <button
-                  className={`ml-2 p-2 rounded flex items-center border ${
-                    githubTokenValid === false 
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                      : 'hover:bg-orange-100 text-orange-700 border-orange-200'
-                  }`}
-                  title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Create GitHub Repository'}
-                  onClick={() => openGitHubDialog('create')}
-                  disabled={githubTokenValid === false}
-                >
-                  <span className="i-ph:plus-circle-duotone text-xl mr-1" /> Create Repo
-                  {githubTokenValid === false && <span className="ml-1 text-xs text-red-500">⚠</span>}
-                </button>
                 <DialogRoot open={supabaseDialogOpen}>
                   <Dialog onBackdrop={() => setSupabaseDialogOpen(false)} onClose={() => setSupabaseDialogOpen(false)}>
                     <DialogTitle>Connect to Supabase</DialogTitle>
