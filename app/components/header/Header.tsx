@@ -6,15 +6,15 @@ import { chatStore } from '~/lib/stores/chat';
 import { classNames } from '~/utils/classNames';
 
 export function Header() {
-  const chat = useStore(chatStore);
+  const chatState = useStore(chatStore.state);
 
   return (
     <header
       className={classNames(
         'flex items-center bg-bolt-elements-background-depth-1 p-5 border-b h-[var(--header-height)]',
         {
-          'border-transparent': !chat.started,
-          'border-bolt-elements-borderColor': chat.started,
+          'border-transparent': !chatState.started,
+          'border-bolt-elements-borderColor': chatState.started,
         },
       )}
     >
@@ -27,7 +27,7 @@ export function Header() {
       <span className="flex-1 px-4 truncate text-center text-bolt-elements-textPrimary">
         <ClientOnly>{() => <ChatDescription />}</ClientOnly>
       </span>
-      {chat.started && (
+      {chatState.started && (
         <ClientOnly>
           {() => (
             <div className="mr-1">

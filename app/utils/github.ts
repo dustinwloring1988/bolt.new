@@ -1,3 +1,5 @@
+import { settingsStore } from '~/lib/stores/settings';
+
 export interface GitHubRepo {
   owner: string;
   name: string;
@@ -59,7 +61,7 @@ export function parseGitHubRepo(githubRepo: string): GitHubRepo {
 }
 
 export function getGitHubToken(): string {
-  return localStorage.getItem('bolt_token_github') || '';
+  return settingsStore.getServiceToken('github');
 }
 
 function getAuthHeaders(): Record<string, string> {

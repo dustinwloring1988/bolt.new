@@ -74,7 +74,7 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
       return;
     }
 
-    chatStore.setKey('started', true);
+    chatStore.startChat();
     setChatStarted(true);
   }, [chatStarted]);
 
@@ -84,7 +84,7 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
 
   const abort = useCallback(() => {
     stop();
-    chatStore.setKey('aborted', true);
+    chatStore.abortChat();
     workbenchStore.abortAllActions();
   }, [stop]);
 
@@ -109,7 +109,10 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
       return;
     }
 
-    chatStore.setKey('aborted', false);
+    // Reset aborted state by starting a new chat
+    if (chatStore.getState().aborted) {
+      chatStore.startChat();
+    }
     runAnimation();
 
     const message = await ChatService.createMessage(_input, attachedImages);
@@ -134,7 +137,7 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
       
       // Set chat as started first
       setChatStarted(true);
-      chatStore.setKey('started', true);
+      chatStore.startChat();
       
       // Run animation to transition from intro to chat
       runAnimation();
@@ -153,7 +156,9 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
   }, [chatStarted, messages.length, isLoading, append, runAnimation]);
 
   useEffect(() => {
-    chatStore.setKey('started', initialMessages.length > 0);
+    if (initialMessages.length > 0) {
+      chatStore.startChat();
+    }
   }, [initialMessages.length]);
 
   useEffect(() => {

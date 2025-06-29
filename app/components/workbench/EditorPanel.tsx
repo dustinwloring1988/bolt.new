@@ -60,8 +60,10 @@ export const EditorPanel = memo(
   }: EditorPanelProps & { terminalTabs: { active: 'bolt' | number, setActive: (tab: 'bolt' | number) => void, count: number, setCount: (n: number) => void, boltOutputBuffer: string[] } }) => {
     renderLogger.trace('EditorPanel');
 
-    const theme = useStore(themeStore);
+    const themeState = useStore(themeStore.state);
     const showTerminal = useStore(workbenchStore.showTerminal);
+
+    const effectiveTheme = themeState.current === 'auto' ? themeState.systemPreference : themeState.current;
 
     const terminalRefs = useRef<Array<TerminalRef | null>>([]);
     const terminalPanelRef = useRef<ImperativePanelHandle>(null);
@@ -86,7 +88,7 @@ export const EditorPanel = memo(
         terminalToggledByShortcut.current = true;
       });
 
-      const unsubscribeFromThemeStore = themeStore.subscribe(() => {
+      const unsubscribeFromThemeStore = themeStore.state.subscribe(() => {
         for (const ref of Object.values(terminalRefs.current)) {
           ref?.reloadStyles();
         }
@@ -173,7 +175,7 @@ export const EditorPanel = memo(
               </PanelHeader>
               <div className="h-full flex-1 overflow-hidden">
                 <CodeMirrorEditor
-                  theme={theme}
+                  theme={effectiveTheme}
                   editable={!isStreaming && editorDocument !== undefined && (!selectedFile || !workbenchStore.isFileLocked(selectedFile))}
                   settings={editorSettings}
                   doc={editorDocument}
@@ -263,7 +265,7 @@ export const EditorPanel = memo(
                 {terminalTabs.active === 'bolt' ? (
                   <BoltTerminal
                     className="h-full w-full"
-                    theme={theme}
+                    theme={effectiveTheme}
                     outputBuffer={terminalTabs.boltOutputBuffer}
                   />
                 ) : (
@@ -275,7 +277,7 @@ export const EditorPanel = memo(
                         ref={ref => { terminalRefs.current[index] = ref; }}
                         onTerminalReady={terminal => workbenchStore.attachTerminal(terminal)}
                         onTerminalResize={(cols, rows) => workbenchStore.onTerminalResize(cols, rows)}
-                        theme={theme}
+                        theme={effectiveTheme}
                       />
                     ) : null
                   )

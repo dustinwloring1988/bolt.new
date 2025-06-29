@@ -30,6 +30,7 @@ import {
   type GitHubRepo,
   type GitHubBranch,
 } from '~/utils/github';
+import { settingsStore } from '~/lib/stores/settings';
 
 declare global {
   interface Window {
@@ -66,7 +67,6 @@ export function Menu() {
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsInitial, setSettingsInitial] = useState({ netlify: '', supabase: '', vercel: '', github: '' });
   const [supabaseDialogOpen, setSupabaseDialogOpen] = useState(false);
   const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('bolt_supabase_url') || '');
   const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('bolt_supabase_key') || '');
@@ -153,17 +153,6 @@ export function Menu() {
       window.removeEventListener('mousemove', onMouseMove);
     };
   }, []);
-
-  useEffect(() => {
-    if (settingsOpen) {
-      setSettingsInitial({
-        netlify: localStorage.getItem('bolt_token_netlify') || '',
-        supabase: localStorage.getItem('bolt_token_supabase') || '',
-        vercel: localStorage.getItem('bolt_token_vercel') || '',
-        github: localStorage.getItem('bolt_token_github') || '',
-      });
-    }
-  }, [settingsOpen]);
 
   useEffect(() => {
     // Check connection status on mount or when credentials change
@@ -302,32 +291,6 @@ export function Menu() {
     window.location.href = `/?template=${encodeURIComponent(prompt)}`;
     setTemplateDialogOpen(false);
   };
-
-  function handleSettingsSave(tokens: { netlify: string; supabase: string; vercel: string; github: string }) {
-    localStorage.setItem('bolt_token_netlify', tokens.netlify);
-    localStorage.setItem('bolt_token_supabase', tokens.supabase);
-    localStorage.setItem('bolt_token_vercel', tokens.vercel);
-    localStorage.setItem('bolt_token_github', tokens.github);
-    
-    // Re-validate GitHub token after saving
-    const checkGitHubToken = async () => {
-      if (tokens.github) {
-        const isValid = await validateGitHubToken();
-        setGithubTokenValid(isValid);
-        if (isValid) {
-          toast.success('GitHub token saved and validated successfully!');
-        } else {
-          toast.error('GitHub token saved but validation failed. Please check your token.');
-        }
-      } else {
-        setGithubTokenValid(false);
-        toast.info('Settings saved. GitHub token not provided.');
-      }
-    };
-    checkGitHubToken();
-    
-    setSettingsOpen(false);
-  }
 
   async function fetchProjects(token: string) {
     setError('');
@@ -480,8 +443,6 @@ export function Menu() {
           <SettingsDialog
             open={settingsOpen}
             onClose={() => setSettingsOpen(false)}
-            initialValues={settingsInitial}
-            onSave={handleSettingsSave}
           />
         </div>
       </div>
@@ -608,9 +569,16 @@ export function Menu() {
   );
 }
 
-// Utility to get Netlify token from localStorage
 export function getNetlifyToken() {
-  return localStorage.getItem('bolt_token_netlify') || '';
+  return settingsStore.getServiceToken('netlify');
+}
+
+export function getVercelToken() {
+  return settingsStore.getServiceToken('vercel');
+}
+
+export function getGitHubToken() {
+  return settingsStore.getServiceToken('github');
 }
 
 async function getAllFilesForDeploy() {
@@ -714,14 +682,4 @@ export async function deployToNetlify() {
     createDeploymentErrorAlert('netlify', errorMessage, alertId);
     toast.error('Netlify deploy failed: ' + errorMessage);
   }
-}
-
-// Utility to get Vercel token from localStorage
-export function getVercelToken() {
-  return localStorage.getItem('bolt_token_vercel') || '';
-}
-
-// Utility to get GitHub token from localStorage
-export function getGitHubToken() {
-  return localStorage.getItem('bolt_token_github') || '';
 }

@@ -1,5 +1,6 @@
 import { toast } from 'react-toastify';
 import { createScopedLogger } from '~/utils/logger';
+import { settingsStore } from '~/lib/stores/settings';
 
 const logger = createScopedLogger('githubService');
 
@@ -409,5 +410,9 @@ Please:
 4. Provide any setup instructions needed
 
 Start by creating the basic project structure based on the template.`;
+  }
+
+  static getGitHubToken(): string {
+    return settingsStore.getServiceToken('github');
   }
 } 

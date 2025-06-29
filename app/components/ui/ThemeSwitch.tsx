@@ -8,18 +8,20 @@ interface ThemeSwitchProps {
 }
 
 export const ThemeSwitch = memo(({ className }: ThemeSwitchProps) => {
-  const theme = useStore(themeStore);
+  const themeState = useStore(themeStore.state);
   const [domLoaded, setDomLoaded] = useState(false);
 
   useEffect(() => {
     setDomLoaded(true);
   }, []);
 
+  const effectiveTheme = themeState.current === 'auto' ? themeState.systemPreference : themeState.current;
+
   return (
     domLoaded && (
       <IconButton
         className={className}
-        icon={theme === 'dark' ? 'i-ph-sun-dim-duotone' : 'i-ph-moon-stars-duotone'}
+        icon={effectiveTheme === 'dark' ? 'i-ph-sun-dim-duotone' : 'i-ph-moon-stars-duotone'}
         size="xl"
         title="Toggle Theme"
         onClick={toggleTheme}

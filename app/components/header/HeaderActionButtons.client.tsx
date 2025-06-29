@@ -14,7 +14,8 @@ interface HeaderActionButtonsProps {}
 
 export function HeaderActionButtons({}: HeaderActionButtonsProps) {
   const showWorkbench = useStore(workbenchStore.showWorkbench);
-  const { showChat } = useStore(chatStore);
+  const chatState = useStore(chatStore.state);
+  const { showChat } = chatState;
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showDeployDropdown, setShowDeployDropdown] = useState(false);
   const [showIntegrationsDropdown, setShowIntegrationsDropdown] = useState(false);
@@ -135,7 +136,7 @@ export function HeaderActionButtons({}: HeaderActionButtonsProps) {
             disabled={!canHideChat}
             onClick={() => {
               if (canHideChat) {
-                chatStore.setKey('showChat', !showChat);
+                chatStore.toggleChat();
               }
             }}
           >
@@ -146,7 +147,7 @@ export function HeaderActionButtons({}: HeaderActionButtonsProps) {
             active={showWorkbench}
             onClick={() => {
               if (showWorkbench && !showChat) {
-                chatStore.setKey('showChat', true);
+                chatStore.toggleChat();
               }
 
               workbenchStore.showWorkbench.set(!showWorkbench);

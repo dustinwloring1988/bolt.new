@@ -62,11 +62,12 @@ export const Head = createHead(() => (
 ));
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const theme = useStore(themeStore);
+  const themeState = useStore(themeStore.state);
 
   useEffect(() => {
-    document.querySelector('html')?.setAttribute('data-theme', theme);
-  }, [theme]);
+    const effectiveTheme = themeState.current === 'auto' ? themeState.systemPreference : themeState.current;
+    document.querySelector('html')?.setAttribute('data-theme', effectiveTheme);
+  }, [themeState]);
 
   return (
     <>

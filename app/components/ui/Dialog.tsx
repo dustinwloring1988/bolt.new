@@ -1,13 +1,14 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { motion, type Variants } from 'framer-motion';
-import React, { memo, type ReactNode, useState } from 'react';
+import React, { memo, type ReactNode, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { IconButton } from './IconButton';
 import { classNames } from '~/utils/classNames';
 import { cubicEasingFn } from '~/utils/easings';
 import { downloadFile, formatDate } from '~/utils/download';
 import { db, exportAllChats, deleteAllChats } from '~/lib/persistence';
-import { chatId } from '~/lib/persistence/useChatHistory';
+import { chatStore } from '~/lib/stores/chat';
+import { settingsStore, type ServiceTokens } from '~/lib/stores/settings';
 
 export { Close as DialogClose, Root as DialogRoot } from '@radix-ui/react-dialog';
 
@@ -136,19 +137,24 @@ export const Dialog = memo(({ className, children, onBackdrop, onClose }: Dialog
   );
 });
 
-export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
+export function SettingsDialog({ open, onClose }: {
   open: boolean;
   onClose: () => void;
-  initialValues?: Partial<{ netlify: string; supabase: string; vercel: string; github: string }>;
-  onSave?: (tokens: { netlify: string; supabase: string; vercel: string; github: string }) => void;
 }) {
-  const [tokens, setTokens] = useState({
-    netlify: initialValues.netlify || '',
-    supabase: initialValues.supabase || '',
-    vercel: initialValues.vercel || '',
-    github: initialValues.github || '',
+  const [tokens, setTokens] = useState<ServiceTokens>({
+    netlify: '',
+    vercel: '',
+    github: '',
   });
   const [chatManagementOpen, setChatManagementOpen] = useState(false);
+
+  // Load current settings when dialog opens
+  useEffect(() => {
+    if (open) {
+      const currentTokens = settingsStore.getServiceTokens();
+      setTokens(currentTokens);
+    }
+  }, [open]);
 
   const handleExportAllChats = async () => {
     if (!db) {
@@ -176,7 +182,7 @@ export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
     try {
       await deleteAllChats(db);
       // Clear current chat state
-      chatId.set(undefined);
+      chatStore.reset();
       // Redirect to home page
       window.location.href = '/';
       toast.success('All chats deleted successfully!');
@@ -185,6 +191,13 @@ export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
       console.error('Failed to delete all chats:', error);
       toast.error('Failed to delete all chats.');
     }
+  };
+
+  const handleSave = () => {
+    // Save tokens to settings store
+    settingsStore.updateServiceTokens(tokens);
+    toast.success('Settings saved successfully!');
+    onClose();
   };
 
   return (
@@ -206,16 +219,6 @@ export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
                       value={tokens.netlify}
                       onChange={e => setTokens(t => ({ ...t, netlify: e.target.value }))}
                       placeholder="Enter Netlify token"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-medium mb-1">Supabase Token</label>
-                    <input
-                      type="text"
-                      className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
-                      value={tokens.supabase}
-                      onChange={e => setTokens(t => ({ ...t, supabase: e.target.value }))}
-                      placeholder="Enter Supabase token"
                     />
                   </div>
                   <div>
@@ -269,7 +272,7 @@ export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
           </DialogDescription>
           <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
             <DialogButton type="secondary" onClick={onClose}>Cancel</DialogButton>
-            <DialogButton type="primary" onClick={() => onSave?.(tokens)}>Save</DialogButton>
+            <DialogButton type="primary" onClick={handleSave}>Save</DialogButton>
           </div>
         </Dialog>
       </RadixDialog.Root>

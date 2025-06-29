@@ -66,7 +66,8 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { showChat } = useStore(chatStore);
+  const chatState = useStore(chatStore.state);
+  const { showChat } = chatState;
 
   const [animationScope, animate] = useAnimate();
 
