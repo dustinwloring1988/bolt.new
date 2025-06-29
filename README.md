@@ -13,22 +13,25 @@ This version of Bolt introduces a suite of powerful features and improvements ov
 ### 🏆 New & Improved Features
 
 - **AI with WebContainer Control**: Bolt gives the AI complete control over the environment—filesystem, node server, package manager, terminal, and browser console—so agents can handle the entire app lifecycle using Webcontaienrs.
+- **Faster, More Reliable Snapshots**: Project snapshots are now stored in IndexedDB for improved speed and reliability.
+- **Starter Templates for New Projects**: Instantly scaffold new projects with popular starter templates for a faster, smoother start.
+- **GitHub Integration**: Connect your workspace to GitHub to import, export, and sync code with your repositories.
 - **Download Zipped Project**: You can now download your whole projects source code.
 - **One Click Deploy**: One click deploy to Netlify or Vercel.
 - **Supabase Integration**: You can now connect your project to a supabase instance with ease.
 - **Search Files**: Integrated file search in the file tree.
-
-### ✨ Features Coming Soon 
-
-- **Starter Templates for New Projects**: Instantly scaffold new projects with popular starter templates for a faster, smoother start.
-- **GitHub Integration**: Connect your workspace to GitHub to import, export, and sync code with your repositories.
-- **Mobile App Generation with Expo**: Generate and preview mobile apps using Expo, right from your browser.
 - **Diff View**: Easily review and understand code changes with a built-in diff viewer.
 - **Discuss Mode**: Collaborate and discuss code or project ideas in a dedicated mode.
 - **Attach Images**: Add images to your projects and discussions for richer context and documentation.
 - **Rewind & Checkpoint**: Roll back your project to previous states or set checkpoints to save your progress.
+
+### ✨ Features Coming Soon 
+
+- **Mobile App Generation with Expo**: Generate and preview mobile apps using Expo, right from your browser.
 - **Use of Context & Summaries**: Allows the agent to have awearness of the code and its context, while summarizing to save tokens.
-- **Faster, More Reliable Snapshots**: Project snapshots are now stored in IndexedDB for improved speed and reliability (was localStorage).
+- **Local Import**: Allow the import of local projects.
+- **Auto fix errors**: Auto detect and fix errors.
+- **Enhanced UI** Add a glass efffect, move buttons and update color scheme.
 
 ---
 
