@@ -92,7 +92,7 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
           >
             <div className="bg-bolt-elements-artifacts-borderColor h-[1px]" />
             <div className="p-5 text-left bg-bolt-elements-actions-background">
-              <ActionList actions={actions} />
+              <ActionList actions={actions} messageId={messageId} />
             </div>
           </motion.div>
         )}
@@ -122,6 +122,7 @@ function ShellCodeBlock({ classsName, code }: ShellCodeBlockProps) {
 
 interface ActionListProps {
   actions: ActionState[];
+  messageId: string;
 }
 
 const actionVariants = {
@@ -129,7 +130,7 @@ const actionVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const ActionList = memo(({ actions }: ActionListProps) => {
+const ActionList = memo(({ actions, messageId }: ActionListProps) => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
       <ul className="list-none space-y-2.5">
@@ -139,7 +140,7 @@ const ActionList = memo(({ actions }: ActionListProps) => {
 
           return (
             <motion.li
-              key={index}
+              key={`${messageId}-action-${index}-${type}-${status}`}
               variants={actionVariants}
               initial="hidden"
               animate="visible"

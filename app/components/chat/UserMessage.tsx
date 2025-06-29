@@ -13,7 +13,7 @@ export function UserMessage({ content }: UserMessageProps) {
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
           {images.map((image, index) => (
-            <div key={index} className="max-w-xs">
+            <div key={`image-${image.name}-${index}`} className="max-w-xs">
               <div className="text-xs text-bolt-elements-textTertiary mb-1">
                 {image.name}
               </div>

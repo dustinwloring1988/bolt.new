@@ -128,7 +128,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ modifications }) => {
                   <div className="divide-y divide-gray-100">
                     {parseDiffLines(modification.content).map((parsedLine, index) => (
                       <DiffLine
-                        key={index}
+                        key={`${filePath}-line-${index}-${parsedLine.type}`}
                         line={parsedLine.line}
                         type={parsedLine.type}
                         lineNumber={parsedLine.lineNumber}
