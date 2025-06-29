@@ -383,3 +383,8 @@ export async function deployToNetlify() {
 export function getVercelToken() {
   return localStorage.getItem('bolt_token_vercel') || '';
 }
+
+// Utility to get GitHub token from localStorage
+export function getGitHubToken() {
+  return localStorage.getItem('bolt_token_github') || '';
+}

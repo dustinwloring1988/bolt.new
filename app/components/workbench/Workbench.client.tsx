@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
+import { DiffView } from '~/components/editor/DiffView';
 import {
   type OnChangeCallback as OnEditorChange,
   type OnScrollCallback as OnEditorScroll,
@@ -22,6 +23,18 @@ import { BoltTerminal } from './terminal/BoltTerminal';
 import { setGlobalShellOutputHandler } from '~/lib/runtime/action-runner';
 import JSZip from 'jszip';
 import { deployToNetlify, deployToVercel } from '~/components/sidebar/Menu.client';
+import {
+  parseGitHubRepo,
+  fetchGitHubRepoFiles,
+  pushFilesToGitHub,
+  createGitHubRepo,
+  getGitHubBranches,
+  getUserRepos,
+  validateGitHubToken,
+  getGitHubToken,
+  type GitHubRepo,
+  type GitHubBranch,
+} from '~/utils/github';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -34,6 +47,10 @@ const sliderOptions: SliderOptions<WorkbenchViewType> = {
   left: {
     value: 'code',
     text: 'Code',
+  },
+  center: {
+    value: 'diff',
+    text: 'Diff',
   },
   right: {
     value: 'preview',
@@ -88,6 +105,21 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [status, setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
   const [error, setError] = useState<string>('');
+
+  // GitHub Integration State
+  const [githubDialogOpen, setGithubDialogOpen] = useState(false);
+  const [githubDialogType, setGithubDialogType] = useState<'clone' | 'push' | 'create'>('clone');
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [githubCommitMessage, setGithubCommitMessage] = useState('Update project files');
+  const [githubRepoName, setGithubRepoName] = useState('');
+  const [githubRepoDescription, setGithubRepoDescription] = useState('');
+  const [githubPrivateRepo, setGithubPrivateRepo] = useState(false);
+  const [githubBranches, setGithubBranches] = useState<GitHubBranch[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState('main');
+  const [userRepos, setUserRepos] = useState<any[]>([]);
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubError, setGithubError] = useState('');
+  const [githubTokenValid, setGithubTokenValid] = useState<boolean | null>(null);
 
   const setSelectedView = (view: WorkbenchViewType) => {
     workbenchStore.currentView.set(view);
@@ -253,6 +285,170 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     workbenchStore.resetCurrentDocument();
   }, []);
 
+  // GitHub Integration Functions
+  useEffect(() => {
+    // Check GitHub token validity on mount
+    const checkGitHubToken = async () => {
+      const token = getGitHubToken();
+      if (token) {
+        const isValid = await validateGitHubToken();
+        setGithubTokenValid(isValid);
+      } else {
+        setGithubTokenValid(false);
+      }
+    };
+    checkGitHubToken();
+  }, []);
+
+  const openGitHubDialog = (type: 'clone' | 'push' | 'create') => {
+    setGithubDialogType(type);
+    setGithubError('');
+    setGithubDialogOpen(true);
+    
+    if (type === 'push' && userRepos.length === 0) {
+      loadUserRepos();
+    }
+  };
+
+  const loadUserRepos = async () => {
+    try {
+      setGithubLoading(true);
+      const repos = await getUserRepos();
+      setUserRepos(repos);
+    } catch (error) {
+      setGithubError(error instanceof Error ? error.message : 'Failed to load repositories');
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const handleCloneRepository = async () => {
+    if (!githubRepoUrl.trim()) {
+      setGithubError('Please enter a repository URL');
+      return;
+    }
+
+    try {
+      setGithubLoading(true);
+      setGithubError('');
+      
+      const repo = parseGitHubRepo(githubRepoUrl);
+      repo.branch = selectedBranch;
+      
+      const files = await fetchGitHubRepoFiles(repo);
+      
+      // Clear existing files first
+      const currentFiles = workbenchStore.files.get();
+      for (const filePath of Object.keys(currentFiles)) {
+        await workbenchStore.deleteFile(filePath);
+      }
+      
+      // Add new files to the workbench
+      for (const [path, content] of Object.entries(files)) {
+        await workbenchStore.setCurrentDocumentContent(content);
+        await workbenchStore.saveFile(path);
+      }
+      
+      toast.success(`Successfully cloned ${repo.owner}/${repo.name}`);
+      setGithubDialogOpen(false);
+      setGithubRepoUrl('');
+      
+    } catch (error) {
+      setGithubError(error instanceof Error ? error.message : 'Failed to clone repository');
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const handlePushToRepository = async () => {
+    if (!githubRepoUrl.trim()) {
+      setGithubError('Please enter a repository URL');
+      return;
+    }
+
+    try {
+      setGithubLoading(true);
+      setGithubError('');
+      
+      const repo = parseGitHubRepo(githubRepoUrl);
+      repo.branch = selectedBranch;
+      
+      const files = await getAllFilesForDeploy();
+      
+      await pushFilesToGitHub(repo, files, githubCommitMessage);
+      
+      toast.success(`Successfully pushed to ${repo.owner}/${repo.name}`);
+      setGithubDialogOpen(false);
+      setGithubRepoUrl('');
+      setGithubCommitMessage('Update project files');
+      
+    } catch (error) {
+      setGithubError(error instanceof Error ? error.message : 'Failed to push to repository');
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const handleCreateRepository = async () => {
+    if (!githubRepoName.trim()) {
+      setGithubError('Please enter a repository name');
+      return;
+    }
+
+    try {
+      setGithubLoading(true);
+      setGithubError('');
+      
+      const repoData = await createGitHubRepo({
+        name: githubRepoName,
+        description: githubRepoDescription,
+        private: githubPrivateRepo,
+      });
+      
+      // After creating, push current files
+      const files = await getAllFilesForDeploy();
+      const repo: GitHubRepo = {
+        owner: repoData.owner.login,
+        name: repoData.name,
+        branch: 'main',
+      };
+      
+      if (Object.keys(files).length > 0) {
+        await pushFilesToGitHub(repo, files, 'Initial commit');
+      }
+      
+      toast.success(
+        <span>
+          Repository created: <a href={repoData.html_url} target="_blank" rel="noopener noreferrer">{repoData.full_name}</a>
+        </span>, 
+        { autoClose: false }
+      );
+      
+      setGithubDialogOpen(false);
+      setGithubRepoName('');
+      setGithubRepoDescription('');
+      
+    } catch (error) {
+      setGithubError(error instanceof Error ? error.message : 'Failed to create repository');
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
+  const loadBranches = async (repoUrl: string) => {
+    try {
+      const repo = parseGitHubRepo(repoUrl);
+      const branches = await getGitHubBranches(repo);
+      setGithubBranches(branches);
+      if (branches.length > 0) {
+        setSelectedBranch(branches[0].name);
+      }
+    } catch (error) {
+      console.warn('Failed to load branches:', error);
+      setGithubBranches([]);
+    }
+  };
+
   // --- Download as Zip helpers ---
   async function getAllFilesForDeploy() {
     // Save all files first to ensure latest content
@@ -342,6 +538,47 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                 >
                   <span className="i-ph:cloud-arrow-up-duotone text-xl mr-1" /> Deploy to Vercel
                 </button>
+                
+                {/* GitHub Integration Buttons */}
+                <button
+                  className={`ml-2 p-2 rounded flex items-center border ${
+                    githubTokenValid === false 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'hover:bg-gray-100 text-gray-700 border-gray-200'
+                  }`}
+                  title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Clone from GitHub'}
+                  onClick={() => openGitHubDialog('clone')}
+                  disabled={githubTokenValid === false}
+                >
+                  <span className="i-ph:git-branch-duotone text-xl mr-1" /> Clone
+                  {githubTokenValid === false && <span className="ml-1 text-xs text-red-500">⚠</span>}
+                </button>
+                <button
+                  className={`ml-2 p-2 rounded flex items-center border ${
+                    githubTokenValid === false 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'hover:bg-purple-100 text-purple-700 border-purple-200'
+                  }`}
+                  title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Push to GitHub'}
+                  onClick={() => openGitHubDialog('push')}
+                  disabled={githubTokenValid === false}
+                >
+                  <span className="i-ph:git-commit-duotone text-xl mr-1" /> Push
+                  {githubTokenValid === false && <span className="ml-1 text-xs text-red-500">⚠</span>}
+                </button>
+                <button
+                  className={`ml-2 p-2 rounded flex items-center border ${
+                    githubTokenValid === false 
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
+                      : 'hover:bg-orange-100 text-orange-700 border-orange-200'
+                  }`}
+                  title={githubTokenValid === false ? 'GitHub token required (check settings)' : 'Create GitHub Repository'}
+                  onClick={() => openGitHubDialog('create')}
+                  disabled={githubTokenValid === false}
+                >
+                  <span className="i-ph:plus-circle-duotone text-xl mr-1" /> Create Repo
+                  {githubTokenValid === false && <span className="ml-1 text-xs text-red-500">⚠</span>}
+                </button>
                 <DialogRoot open={supabaseDialogOpen}>
                   <Dialog onBackdrop={() => setSupabaseDialogOpen(false)} onClose={() => setSupabaseDialogOpen(false)}>
                     <DialogTitle>Connect to Supabase</DialogTitle>
@@ -406,6 +643,187 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     </div>
                   </Dialog>
                 </DialogRoot>
+                
+                {/* GitHub Integration Dialog */}
+                <DialogRoot open={githubDialogOpen}>
+                  <Dialog onBackdrop={() => setGithubDialogOpen(false)} onClose={() => setGithubDialogOpen(false)}>
+                    <DialogTitle>
+                      {githubDialogType === 'clone' && 'Clone Repository from GitHub'}
+                      {githubDialogType === 'push' && 'Push to GitHub Repository'}
+                      {githubDialogType === 'create' && 'Create New GitHub Repository'}
+                    </DialogTitle>
+                    <DialogDescription>
+                      <div className="space-y-4">
+                        {githubTokenValid === false && (
+                          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                            <p className="text-yellow-800 text-sm">
+                              GitHub token not set or invalid. Please add your GitHub token in settings.
+                            </p>
+                          </div>
+                        )}
+                        
+                        {githubDialogType === 'clone' && (
+                          <>
+                            <div>
+                              <label className="block font-medium mb-1">Repository URL</label>
+                              <input
+                                type="text"
+                                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                value={githubRepoUrl}
+                                onChange={(e) => {
+                                  setGithubRepoUrl(e.target.value);
+                                  if (e.target.value.trim()) {
+                                    loadBranches(e.target.value);
+                                  }
+                                }}
+                                placeholder="owner/repo or https://github.com/owner/repo"
+                              />
+                            </div>
+                            {githubBranches.length > 0 && (
+                              <div>
+                                <label className="block font-medium mb-1">Branch</label>
+                                <select
+                                  className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                  value={selectedBranch}
+                                  onChange={(e) => setSelectedBranch(e.target.value)}
+                                >
+                                  {githubBranches.map((branch) => (
+                                    <option key={branch.name} value={branch.name}>{branch.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        
+                        {githubDialogType === 'push' && (
+                          <>
+                            <div>
+                              <label className="block font-medium mb-1">Repository URL</label>
+                              <input
+                                type="text"
+                                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                value={githubRepoUrl}
+                                onChange={(e) => {
+                                  setGithubRepoUrl(e.target.value);
+                                  if (e.target.value.trim()) {
+                                    loadBranches(e.target.value);
+                                  }
+                                }}
+                                placeholder="owner/repo or https://github.com/owner/repo"
+                              />
+                              {userRepos.length > 0 && (
+                                <div className="mt-2">
+                                  <label className="block text-sm text-gray-600 mb-1">Or select from your repositories:</label>
+                                  <select
+                                    className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        setGithubRepoUrl(e.target.value);
+                                        loadBranches(e.target.value);
+                                      }
+                                    }}
+                                    value=""
+                                  >
+                                    <option value="">-- Select a repository --</option>
+                                    {userRepos.map((repo) => (
+                                      <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                            {githubBranches.length > 0 && (
+                              <div>
+                                <label className="block font-medium mb-1">Branch</label>
+                                <select
+                                  className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                  value={selectedBranch}
+                                  onChange={(e) => setSelectedBranch(e.target.value)}
+                                >
+                                  {githubBranches.map((branch) => (
+                                    <option key={branch.name} value={branch.name}>{branch.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                            <div>
+                              <label className="block font-medium mb-1">Commit Message</label>
+                              <input
+                                type="text"
+                                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                value={githubCommitMessage}
+                                onChange={(e) => setGithubCommitMessage(e.target.value)}
+                                placeholder="Update project files"
+                              />
+                            </div>
+                          </>
+                        )}
+                        
+                        {githubDialogType === 'create' && (
+                          <>
+                            <div>
+                              <label className="block font-medium mb-1">Repository Name</label>
+                              <input
+                                type="text"
+                                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                value={githubRepoName}
+                                onChange={(e) => setGithubRepoName(e.target.value)}
+                                placeholder="my-awesome-project"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-medium mb-1">Description (optional)</label>
+                              <input
+                                type="text"
+                                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                                value={githubRepoDescription}
+                                onChange={(e) => setGithubRepoDescription(e.target.value)}
+                                placeholder="A brief description of your project"
+                              />
+                            </div>
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id="private-repo"
+                                className="mr-2"
+                                checked={githubPrivateRepo}
+                                onChange={(e) => setGithubPrivateRepo(e.target.checked)}
+                              />
+                              <label htmlFor="private-repo" className="text-sm">Make repository private</label>
+                            </div>
+                          </>
+                        )}
+                        
+                        {githubError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                            <p className="text-red-800 text-sm">{githubError}</p>
+                          </div>
+                        )}
+                      </div>
+                    </DialogDescription>
+                    <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+                      <DialogButton type="secondary" onClick={() => setGithubDialogOpen(false)}>
+                        Cancel
+                      </DialogButton>
+                      <DialogButton 
+                        type="primary" 
+                        onClick={() => {
+                          if (githubLoading || githubTokenValid === false) return;
+                          if (githubDialogType === 'clone') handleCloneRepository();
+                          else if (githubDialogType === 'push') handlePushToRepository();
+                          else if (githubDialogType === 'create') handleCreateRepository();
+                        }}
+                      >
+                        {githubLoading ? 'Processing...' : (
+                          githubDialogType === 'clone' ? 'Clone' :
+                          githubDialogType === 'push' ? 'Push' : 'Create'
+                        )}
+                      </DialogButton>
+                    </div>
+                  </Dialog>
+                </DialogRoot>
+                
                 <div className="ml-auto" />
                 {selectedView === 'code' && (
                   <PanelHeaderButton
@@ -450,6 +868,14 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       setCount: setTerminalCount,
                       boltOutputBuffer,
                     }}
+                  />
+                </View>
+                <View
+                  initial={{ x: selectedView === 'diff' ? 0 : selectedView === 'code' ? '100%' : '-100%' }}
+                  animate={{ x: selectedView === 'diff' ? 0 : selectedView === 'code' ? '100%' : '-100%' }}
+                >
+                  <DiffView 
+                    modifications={workbenchStore.getFileModifcations()} 
                   />
                 </View>
                 <View

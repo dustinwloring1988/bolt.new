@@ -1,21 +1,82 @@
 import type { Message } from 'ai';
 import type { ChatHistoryItem } from './useChatHistory';
+import type { Snapshot, Checkpoint } from './types';
 import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('ChatHistory');
 
+// Snapshot functions
+export async function getSnapshot(db: IDBDatabase, chatId: string): Promise<Snapshot | undefined> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('snapshots', 'readonly');
+    const store = transaction.objectStore('snapshots');
+    const request = store.get(chatId);
+
+    request.onsuccess = () => resolve(request.result?.snapshot as Snapshot | undefined);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function setSnapshot(db: IDBDatabase, chatId: string, snapshot: Snapshot): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('snapshots', 'readwrite');
+    const store = transaction.objectStore('snapshots');
+    const request = store.put({ chatId, snapshot });
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function deleteSnapshot(db: IDBDatabase, chatId: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('snapshots', 'readwrite');
+    const store = transaction.objectStore('snapshots');
+    const request = store.delete(chatId);
+
+    request.onsuccess = () => resolve();
+
+    request.onerror = (event) => {
+      if ((event.target as IDBRequest).error?.name === 'NotFoundError') {
+        resolve();
+      } else {
+        reject(request.error);
+      }
+    };
+  });
+}
+
 // this is used at the top level and never rejects
 export async function openDatabase(): Promise<IDBDatabase | undefined> {
+  if (typeof indexedDB === 'undefined') {
+    return undefined;
+  }
+
   return new Promise((resolve) => {
-    const request = indexedDB.open('boltHistory', 1);
+    const request = indexedDB.open('boltHistory', 3);
 
     request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
 
-      if (!db.objectStoreNames.contains('chats')) {
-        const store = db.createObjectStore('chats', { keyPath: 'id' });
-        store.createIndex('id', 'id', { unique: true });
-        store.createIndex('urlId', 'urlId', { unique: true });
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains('chats')) {
+          const store = db.createObjectStore('chats', { keyPath: 'id' });
+          store.createIndex('id', 'id', { unique: true });
+          store.createIndex('urlId', 'urlId', { unique: true });
+        }
+      }
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('snapshots')) {
+          db.createObjectStore('snapshots', { keyPath: 'chatId' });
+        }
+      }
+      if (oldVersion < 3) {
+        if (!db.objectStoreNames.contains('checkpoints')) {
+          const store = db.createObjectStore('checkpoints', { keyPath: 'id' });
+          store.createIndex('chatId', 'chatId', { unique: false });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+        }
       }
     };
 
@@ -94,12 +155,46 @@ export async function getMessagesById(db: IDBDatabase, id: string): Promise<Chat
 
 export async function deleteById(db: IDBDatabase, id: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction('chats', 'readwrite');
-    const store = transaction.objectStore('chats');
-    const request = store.delete(id);
+    const transaction = db.transaction(['chats', 'snapshots'], 'readwrite');
+    const chatStore = transaction.objectStore('chats');
+    const snapshotStore = transaction.objectStore('snapshots');
 
-    request.onsuccess = () => resolve(undefined);
-    request.onerror = () => reject(request.error);
+    const deleteChatRequest = chatStore.delete(id);
+    const deleteSnapshotRequest = snapshotStore.delete(id);
+
+    let chatDeleted = false;
+    let snapshotDeleted = false;
+
+    const checkCompletion = () => {
+      if (chatDeleted && snapshotDeleted) {
+        resolve(undefined);
+      }
+    };
+
+    deleteChatRequest.onsuccess = () => {
+      chatDeleted = true;
+      checkCompletion();
+    };
+    deleteChatRequest.onerror = () => reject(deleteChatRequest.error);
+
+    deleteSnapshotRequest.onsuccess = () => {
+      snapshotDeleted = true;
+      checkCompletion();
+    };
+
+    deleteSnapshotRequest.onerror = (event) => {
+      if ((event.target as IDBRequest).error?.name === 'NotFoundError') {
+        snapshotDeleted = true;
+        checkCompletion();
+      } else {
+        reject(deleteSnapshotRequest.error);
+      }
+    };
+
+    transaction.oncomplete = () => {
+      // This might resolve before checkCompletion if one operation finishes much faster
+    };
+    transaction.onerror = () => reject(transaction.error);
   });
 }
 
@@ -156,5 +251,76 @@ async function getUrlIds(db: IDBDatabase): Promise<string[]> {
     request.onerror = () => {
       reject(request.error);
     };
+  });
+}
+
+// Checkpoint functions
+export async function saveCheckpoint(db: IDBDatabase, checkpoint: Checkpoint): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('checkpoints', 'readwrite');
+    const store = transaction.objectStore('checkpoints');
+    const request = store.put(checkpoint);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getCheckpoints(db: IDBDatabase, chatId: string): Promise<Checkpoint[]> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('checkpoints', 'readonly');
+    const store = transaction.objectStore('checkpoints');
+    const index = store.index('chatId');
+    const request = index.getAll(chatId);
+
+    request.onsuccess = () => {
+      const checkpoints = (request.result as Checkpoint[]).sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      resolve(checkpoints);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getCheckpoint(db: IDBDatabase, checkpointId: string): Promise<Checkpoint | undefined> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('checkpoints', 'readonly');
+    const store = transaction.objectStore('checkpoints');
+    const request = store.get(checkpointId);
+
+    request.onsuccess = () => resolve(request.result as Checkpoint | undefined);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function deleteCheckpoint(db: IDBDatabase, checkpointId: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('checkpoints', 'readwrite');
+    const store = transaction.objectStore('checkpoints');
+    const request = store.delete(checkpointId);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function deleteCheckpointsByChatId(db: IDBDatabase, chatId: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction('checkpoints', 'readwrite');
+    const store = transaction.objectStore('checkpoints');
+    const index = store.index('chatId');
+    const request = index.openCursor(IDBKeyRange.only(chatId));
+
+    request.onsuccess = (event) => {
+      const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
+    request.onerror = () => reject(request.error);
   });
 }

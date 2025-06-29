@@ -12,6 +12,7 @@ interface SliderOption<T> {
 
 export interface SliderOptions<T> {
   left: SliderOption<T>;
+  center?: SliderOption<T>;
   right: SliderOption<T>;
 }
 
@@ -23,13 +24,19 @@ interface SliderProps<T> {
 
 export const Slider = genericMemo(<T,>({ selected, options, setSelected }: SliderProps<T>) => {
   const isLeftSelected = selected === options.left.value;
+  const isCenterSelected = options.center !== undefined && selected === options.center.value;
 
   return (
     <div className="flex items-center flex-wrap shrink-0 gap-1 bg-bolt-elements-background-depth-1 overflow-hidden rounded-full p-1">
       <SliderButton selected={isLeftSelected} setSelected={() => setSelected?.(options.left.value)}>
         {options.left.text}
       </SliderButton>
-      <SliderButton selected={!isLeftSelected} setSelected={() => setSelected?.(options.right.value)}>
+      {options.center && (
+        <SliderButton selected={isCenterSelected} setSelected={() => setSelected?.(options.center!.value)}>
+          {options.center.text}
+        </SliderButton>
+      )}
+      <SliderButton selected={!isLeftSelected && !isCenterSelected} setSelected={() => setSelected?.(options.right.value)}>
         {options.right.text}
       </SliderButton>
     </div>
