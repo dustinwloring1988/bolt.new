@@ -1,3 +1,10 @@
+.glass {
+  background: var(--bolt-elements-glass-background);
+  border: 1px solid var(--bolt-elements-glass-border);
+  box-shadow: var(--bolt-elements-glass-shadow);
+  backdrop-filter: blur(10px);
+}
+
 .BaseChat {
   &[data-chat-visible='false'] {
     --workbench-inner-width: 100%;

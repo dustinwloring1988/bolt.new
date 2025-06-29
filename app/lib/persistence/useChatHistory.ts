@@ -3,7 +3,7 @@ import type { Message } from 'ai';
 import { atom } from 'nanostores';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { getMessages, getNextId, getUrlId, openDatabase, setMessages, getSnapshot, setSnapshot, saveCheckpoint, getCheckpoints, getCheckpoint, deleteCheckpoint } from './db';
+import { getMessages, getNextId, getUrlId, openDatabase, setMessages, getSnapshot, setSnapshot, saveCheckpoint, getCheckpoints, getCheckpoint, deleteCheckpoint, updateChatDescription, updateChatDescriptionByUrlId } from './db';
 import type { Snapshot, Checkpoint } from './types';
 import { workbenchStore } from '~/lib/stores/workbench';
 import type { FileMap } from '~/lib/stores/files';
@@ -252,6 +252,53 @@ export function useChatHistory() {
     [db],
   );
 
+  const updateDescription = useCallback(
+    async (newDescription: string) => {
+      if (!db) {
+        toast.error('Database not available.');
+        return false;
+      }
+
+      // Validate description
+      if (!newDescription.trim()) {
+        toast.error('Description cannot be empty.');
+        return false;
+      }
+
+      if (newDescription.length > 100) {
+        toast.error('Description is too long. Maximum 100 characters.');
+        return false;
+      }
+
+      const currentChatId = chatId.get();
+      const currentUrlId = urlId;
+
+      if (!currentChatId && !currentUrlId) {
+        toast.error('No active chat to update.');
+        return false;
+      }
+
+      try {
+        // Update the database
+        if (currentUrlId) {
+          await updateChatDescriptionByUrlId(db, currentUrlId, newDescription.trim());
+        } else if (currentChatId) {
+          await updateChatDescription(db, currentChatId, newDescription.trim());
+        }
+
+        // Update the local state
+        description.set(newDescription.trim());
+        toast.success('Chat title updated successfully.');
+        return true;
+      } catch (error) {
+        console.error('Failed to update description:', error);
+        toast.error('Failed to update chat title.');
+        return false;
+      }
+    },
+    [db, urlId],
+  );
+
 
   return {
     ready: !mixedId || ready,
@@ -263,6 +310,7 @@ export function useChatHistory() {
     loadCheckpoints,
     restoreCheckpoint,
     removeCheckpoint,
+    updateDescription,
     storeMessageHistory: async (messages: Message[]) => {
       if (!db || messages.length === 0) {
         return;

@@ -82,6 +82,11 @@
   --bolt-elements-cta-background: theme('colors.gray.100');
   --bolt-elements-cta-text: theme('colors.gray.950');
 
+  /* Glass Effect */
+  --bolt-elements-glass-background: rgba(255, 255, 255, 0.85);
+  --bolt-elements-glass-border: rgba(255, 255, 255, 0.2);
+  --bolt-elements-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+
   /* Terminal Colors */
   --bolt-terminal-background: var(--bolt-elements-terminals-background);
   --bolt-terminal-foreground: #333333;
@@ -187,6 +192,11 @@
 
   --bolt-elements-cta-background: theme('colors.alpha.white.10');
   --bolt-elements-cta-text: theme('colors.white');
+
+  /* Glass Effect */
+  --bolt-elements-glass-background: rgba(0, 0, 0, 0.75);
+  --bolt-elements-glass-border: rgba(255, 255, 255, 0.1);
+  --bolt-elements-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 
   /* Terminal Colors */
   --bolt-terminal-background: var(--bolt-elements-terminals-background);

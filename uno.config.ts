@@ -224,6 +224,11 @@ export default defineConfig({
             background: 'var(--bolt-elements-cta-background)',
             text: 'var(--bolt-elements-cta-text)',
           },
+          glass: {
+            background: 'var(--bolt-elements-glass-background)',
+            border: 'var(--bolt-elements-glass-border)',
+            shadow: 'var(--bolt-elements-glass-shadow)',
+          },
         },
       },
     },

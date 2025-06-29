@@ -56,4 +56,12 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
     tags: ['vite', 'typescript', 'minimal'],
     icon: 'i-bolt:typescript',
   },
+  {
+    name: 'Expo App',
+    label: 'Expo React Native',
+    description: 'Expo starter template for mobile app development with React Native',
+    githubRepo: 'xKevIsDev/bolt-expo-template',
+    tags: ['expo', 'react-native', 'mobile', 'app', 'typescript'],
+    icon: 'i-bolt:expo',
+  },
 ];

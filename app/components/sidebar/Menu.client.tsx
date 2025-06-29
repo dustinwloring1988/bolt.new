@@ -5,12 +5,18 @@ import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle, SettingsDialog } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
-import { db, deleteById, getAll, chatId, type ChatHistoryItem } from '~/lib/persistence';
+import { db, deleteById, getAll, chatId, type ChatHistoryItem, exportAllChats, deleteAllChats } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 import { workbenchStore } from '~/lib/stores/workbench';
 import JSZip from 'jszip';
 import { IconButton } from '~/components/ui/IconButton';
+import { 
+  createDeploymentStartAlert,
+  createDeploymentSuccessAlert,
+  createDeploymentErrorAlert
+} from '~/lib/stores/deploymentAlerts';
+import { deploymentStatusService, NetlifyStatusChecker, VercelStatusChecker } from '~/lib/services/deploymentStatus';
 
 declare global {
   interface Window {
@@ -327,14 +333,17 @@ export async function deployToVercel() {
     toast.error('Vercel token not set. Please add it in settings.');
     return;
   }
-  const files = await getAllFilesForDeploy();
-  const zipBlob = await createProjectZip(files);
-  toast.info('Deploying to Vercel...');
+  
+  const alertId = createDeploymentStartAlert('vercel');
+  
   try {
+    const files = await getAllFilesForDeploy();
+    const zipBlob = await createProjectZip(files);
+    
     const formData = new FormData();
     formData.append('file', zipBlob, 'project.zip');
     formData.append('name', 'bolt-project');
-    // Vercel API expects a JSON file map, but for demo, we send a zip as a file upload (for real use, may need to use their CLI or API with file map)
+    
     const res = await fetch('https://api.vercel.com/v13/deployments', {
       method: 'POST',
       headers: {
@@ -342,11 +351,20 @@ export async function deployToVercel() {
       },
       body: formData,
     });
+    
     const data: any = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || 'Vercel deploy failed');
-    toast.success(<span>Deployed to Vercel: <a href={`https://${data.url}`} target="_blank" rel="noopener noreferrer">{data.url}</a></span>, { autoClose: false });
+    
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'Vercel deploy failed');
+    }
+    
+    const deploymentUrl = `https://${data.url}`;
+    createDeploymentSuccessAlert('vercel', deploymentUrl, alertId);
+    toast.success(<span>Deployed to Vercel: <a href={deploymentUrl} target="_blank" rel="noopener noreferrer">{data.url}</a></span>, { autoClose: false });
   } catch (e) {
-    toast.error('Vercel deploy failed: ' + (e instanceof Error ? e.message : e));
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    createDeploymentErrorAlert('vercel', errorMessage, alertId);
+    toast.error('Vercel deploy failed: ' + errorMessage);
   }
 }
 
@@ -356,14 +374,17 @@ export async function deployToNetlify() {
     toast.error('Netlify token not set. Please add it in settings.');
     return;
   }
-  const files = await getAllFilesForDeploy();
-  const zipBlob = await createProjectZip(files);
-  toast.info('Deploying to Netlify...');
+  
+  const alertId = createDeploymentStartAlert('netlify');
+  
   try {
+    const files = await getAllFilesForDeploy();
+    const zipBlob = await createProjectZip(files);
+    
     const formData = new FormData();
     formData.append('file', zipBlob, 'project.zip');
     formData.append('name', 'bolt-project');
-    // Netlify API expects a zip upload for some endpoints; for demo, we send as file upload (for real use, may need to use their CLI or API with file map)
+    
     const res = await fetch('https://api.netlify.com/api/v1/sites', {
       method: 'POST',
       headers: {
@@ -371,11 +392,20 @@ export async function deployToNetlify() {
       },
       body: formData,
     });
+    
     const data: any = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Netlify deploy failed');
-    toast.success(<span>Deployed to Netlify: <a href={data.ssl_url} target="_blank" rel="noopener noreferrer">{data.ssl_url}</a></span>, { autoClose: false });
+    
+    if (!res.ok) {
+      throw new Error(data.message || 'Netlify deploy failed');
+    }
+    
+    const deploymentUrl = data.ssl_url || data.url;
+    createDeploymentSuccessAlert('netlify', deploymentUrl, alertId);
+    toast.success(<span>Deployed to Netlify: <a href={deploymentUrl} target="_blank" rel="noopener noreferrer">{deploymentUrl}</a></span>, { autoClose: false });
   } catch (e) {
-    toast.error('Netlify deploy failed: ' + (e instanceof Error ? e.message : e));
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    createDeploymentErrorAlert('netlify', errorMessage, alertId);
+    toast.error('Netlify deploy failed: ' + errorMessage);
   }
 }
 

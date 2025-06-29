@@ -1,9 +1,13 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { motion, type Variants } from 'framer-motion';
 import React, { memo, type ReactNode, useState } from 'react';
+import { toast } from 'react-toastify';
 import { IconButton } from './IconButton';
 import { classNames } from '~/utils/classNames';
 import { cubicEasingFn } from '~/utils/easings';
+import { downloadFile, formatDate } from '~/utils/download';
+import { db, exportAllChats, deleteAllChats } from '~/lib/persistence';
+import { chatId } from '~/lib/persistence/useChatHistory';
 
 export { Close as DialogClose, Root as DialogRoot } from '@radix-ui/react-dialog';
 
@@ -144,60 +148,159 @@ export function SettingsDialog({ open, onClose, initialValues = {}, onSave }: {
     vercel: initialValues.vercel || '',
     github: initialValues.github || '',
   });
+  const [chatManagementOpen, setChatManagementOpen] = useState(false);
+
+  const handleExportAllChats = async () => {
+    if (!db) {
+      toast.error('Database not available.');
+      return;
+    }
+
+    try {
+      const exportData = await exportAllChats(db);
+      const filename = `bolt-chats-export-${formatDate(new Date())}.json`;
+      downloadFile(exportData, filename);
+      toast.success('All chats exported successfully!');
+    } catch (error) {
+      console.error('Failed to export chats:', error);
+      toast.error('Failed to export chats.');
+    }
+  };
+
+  const handleDeleteAllChats = async () => {
+    if (!db) {
+      toast.error('Database not available.');
+      return;
+    }
+
+    try {
+      await deleteAllChats(db);
+      // Clear current chat state
+      chatId.set(undefined);
+      // Redirect to home page
+      window.location.href = '/';
+      toast.success('All chats deleted successfully!');
+      setChatManagementOpen(false);
+    } catch (error) {
+      console.error('Failed to delete all chats:', error);
+      toast.error('Failed to delete all chats.');
+    }
+  };
 
   return (
-    <RadixDialog.Root open={open}>
-      <Dialog onBackdrop={onClose} onClose={onClose}>
-        <DialogTitle>Service Tokens</DialogTitle>
-        <DialogDescription>
-          <div className="space-y-4">
-            <div>
-              <label className="block font-medium mb-1">Netlify Token</label>
-              <input
-                type="text"
-                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
-                value={tokens.netlify}
-                onChange={e => setTokens(t => ({ ...t, netlify: e.target.value }))}
-                placeholder="Enter Netlify token"
-              />
+    <>
+      <RadixDialog.Root open={open}>
+        <Dialog onBackdrop={onClose} onClose={onClose}>
+          <DialogTitle>Settings</DialogTitle>
+          <DialogDescription>
+            <div className="space-y-6">
+              {/* Service Tokens Section */}
+              <div>
+                <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">Service Tokens</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block font-medium mb-1">Netlify Token</label>
+                    <input
+                      type="text"
+                      className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                      value={tokens.netlify}
+                      onChange={e => setTokens(t => ({ ...t, netlify: e.target.value }))}
+                      placeholder="Enter Netlify token"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">Supabase Token</label>
+                    <input
+                      type="text"
+                      className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                      value={tokens.supabase}
+                      onChange={e => setTokens(t => ({ ...t, supabase: e.target.value }))}
+                      placeholder="Enter Supabase token"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">Vercel Token</label>
+                    <input
+                      type="text"
+                      className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                      value={tokens.vercel}
+                      onChange={e => setTokens(t => ({ ...t, vercel: e.target.value }))}
+                      placeholder="Enter Vercel token"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">GitHub Token</label>
+                    <input
+                      type="text"
+                      className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
+                      value={tokens.github}
+                      onChange={e => setTokens(t => ({ ...t, github: e.target.value }))}
+                      placeholder="Enter GitHub token"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Chat Management Section */}
+              <div className="border-t border-bolt-elements-borderColor pt-4">
+                <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">Chat Management</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Export All Chats</p>
+                      <p className="text-sm text-bolt-elements-textSecondary">Download all your chat history as a JSON file</p>
+                    </div>
+                    <DialogButton type="secondary" onClick={handleExportAllChats}>
+                      Export
+                    </DialogButton>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Delete All Chats</p>
+                      <p className="text-sm text-bolt-elements-textSecondary">Permanently remove all chat history</p>
+                    </div>
+                    <DialogButton type="danger" onClick={() => setChatManagementOpen(true)}>
+                      Delete All
+                    </DialogButton>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block font-medium mb-1">Supabase Token</label>
-              <input
-                type="text"
-                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
-                value={tokens.supabase}
-                onChange={e => setTokens(t => ({ ...t, supabase: e.target.value }))}
-                placeholder="Enter Supabase token"
-              />
-            </div>
-            <div>
-              <label className="block font-medium mb-1">Vercel Token</label>
-              <input
-                type="text"
-                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
-                value={tokens.vercel}
-                onChange={e => setTokens(t => ({ ...t, vercel: e.target.value }))}
-                placeholder="Enter Vercel token"
-              />
-            </div>
-            <div>
-              <label className="block font-medium mb-1">GitHub Token</label>
-              <input
-                type="text"
-                className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
-                value={tokens.github}
-                onChange={e => setTokens(t => ({ ...t, github: e.target.value }))}
-                placeholder="Enter GitHub token"
-              />
-            </div>
+          </DialogDescription>
+          <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+            <DialogButton type="secondary" onClick={onClose}>Cancel</DialogButton>
+            <DialogButton type="primary" onClick={() => onSave?.(tokens)}>Save</DialogButton>
           </div>
-        </DialogDescription>
-        <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
-          <DialogButton type="secondary" onClick={onClose}>Cancel</DialogButton>
-          <DialogButton type="primary" onClick={() => onSave?.(tokens)}>Save</DialogButton>
-        </div>
-      </Dialog>
-    </RadixDialog.Root>
+        </Dialog>
+      </RadixDialog.Root>
+      
+      {/* Confirmation Dialog for Delete All Chats */}
+      <RadixDialog.Root open={chatManagementOpen}>
+        <Dialog onBackdrop={() => setChatManagementOpen(false)} onClose={() => setChatManagementOpen(false)}>
+          <DialogTitle>Delete All Chats?</DialogTitle>
+          <DialogDescription>
+            <div>
+              <p className="mb-3">
+                <strong>Warning:</strong> This action cannot be undone.
+              </p>
+              <p>
+                You are about to permanently delete all your chat history, including all conversations, snapshots, and checkpoints.
+              </p>
+              <p className="mt-3 text-bolt-elements-textSecondary">
+                Consider exporting your chats first if you want to keep a backup.
+              </p>
+            </div>
+          </DialogDescription>
+          <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+            <DialogButton type="secondary" onClick={() => setChatManagementOpen(false)}>
+              Cancel
+            </DialogButton>
+            <DialogButton type="danger" onClick={handleDeleteAllChats}>
+              Delete All Chats
+            </DialogButton>
+          </div>
+        </Dialog>
+      </RadixDialog.Root>
+    </>
   );
 }

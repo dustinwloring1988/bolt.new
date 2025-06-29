@@ -21,6 +21,8 @@ import { renderLogger } from '~/utils/logger';
 import { DialogRoot, Dialog, DialogTitle, DialogDescription, DialogButton } from '~/components/ui/Dialog';
 import { BoltTerminal } from './terminal/BoltTerminal';
 import { setGlobalShellOutputHandler } from '~/lib/runtime/action-runner';
+import { QRCodeModal } from '~/components/ui/QRCodeModal';
+import { detectExpoUrl, showQRCode } from '~/lib/stores/qrCode';
 import JSZip from 'jszip';
 import { deployToNetlify, deployToVercel } from '~/components/sidebar/Menu.client';
 import {
@@ -161,6 +163,13 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   useEffect(() => {
     setGlobalShellOutputHandler((data: string) => {
       setBoltOutputBuffer(prev => [...prev, data]);
+      
+      // Check for Expo URLs in terminal output
+      const expoUrl = detectExpoUrl(data);
+      if (expoUrl) {
+        // Auto-show QR code when Expo URL is detected
+        showQRCode(expoUrl);
+      }
     });
     return () => {
       setGlobalShellOutputHandler(null);
@@ -888,6 +897,8 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
             </div>
           </div>
         </div>
+        {/* QR Code Modal */}
+        <QRCodeModal />
       </motion.div>
     )
   );
