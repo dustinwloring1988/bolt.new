@@ -9,6 +9,8 @@ import { db, deleteById, getAll, chatId, type ChatHistoryItem, exportAllChats, d
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 import { workbenchStore } from '~/lib/stores/workbench';
+import { webcontainer } from '~/lib/webcontainer';
+import * as nodePath from 'node:path';
 import JSZip from 'jszip';
 import { IconButton } from '~/components/ui/IconButton';
 import { 
@@ -35,6 +37,7 @@ import { settingsStore } from '~/lib/stores/settings';
 declare global {
   interface Window {
     syncSupabaseEnv?: (url: string, key: string) => Promise<void>;
+    showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
   }
 }
 
@@ -93,6 +96,11 @@ export function Menu() {
 
   // Template Modal State
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  
+  // Local Folder Modal State
+  const [localFolderDialogOpen, setLocalFolderDialogOpen] = useState(false);
+  const [localFolderLoading, setLocalFolderLoading] = useState(false);
+  const [localFolderError, setLocalFolderError] = useState('');
 
   const loadEntries = useCallback(() => {
     if (db) {
@@ -234,21 +242,24 @@ export function Menu() {
       const files = await fetchGitHubRepoFiles(repo);
       console.log('Successfully fetched files:', Object.keys(files));
       
-      // Clear existing files first
-      const currentFiles = workbenchStore.files.get();
-      for (const filePath of Object.keys(currentFiles)) {
-        await workbenchStore.deleteFile(filePath);
-      }
+      // Store files in localStorage for loading after chat starts
+      const fileData = {
+        files,
+        type: 'github',
+        repoName: `${repo.owner}/${repo.name}`,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('bolt_pending_files', JSON.stringify(fileData));
       
-      // Add new files to the workbench
-      for (const [path, content] of Object.entries(files)) {
-        await workbenchStore.setCurrentDocumentContent(content);
-        await workbenchStore.saveFile(path);
-      }
+      // Create a new chat with the cloned project
+      const projectPrompt = `I've cloned the repository ${repo.owner}/${repo.name} from GitHub. The project contains ${Object.keys(files).length} files. Can you help me understand this project and assist with any development tasks?`;
       
       toast.success(`Successfully cloned ${repo.owner}/${repo.name}`);
       setGithubDialogOpen(false);
       setGithubRepoUrl('');
+      
+      // Navigate to new chat with project prompt and file loading flag
+      window.location.href = `/?template=${encodeURIComponent(projectPrompt)}&loadFiles=true`;
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to clone repository';
@@ -290,6 +301,111 @@ export function Menu() {
     // Navigate to new chat with template prompt
     window.location.href = `/?template=${encodeURIComponent(prompt)}`;
     setTemplateDialogOpen(false);
+  };
+  
+  const handleLocalFolderImport = async () => {
+    try {
+      setLocalFolderLoading(true);
+      setLocalFolderError('');
+      
+      // Check if File System Access API is supported
+      if (!('showDirectoryPicker' in window)) {
+        throw new Error('File System Access API is not supported in this browser. Please use Chrome, Edge, or another Chromium-based browser.');
+      }
+      
+      // Open directory picker
+      const directoryHandle = await (window as any).showDirectoryPicker({
+        mode: 'read'
+      });
+      
+      console.log('Selected directory:', directoryHandle.name);
+      
+      // Read files from the directory
+      const files: { [path: string]: string } = {};
+      await readDirectory(directoryHandle, '', files);
+      
+      console.log('Read files:', Object.keys(files));
+      
+      if (Object.keys(files).length === 0) {
+        throw new Error('No readable files found in the selected folder.');
+      }
+      
+      // Store files in localStorage for loading after chat starts
+      const fileData = {
+        files,
+        type: 'local',
+        folderName: directoryHandle.name,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('bolt_pending_files', JSON.stringify(fileData));
+      
+      // Create a new chat with the imported project
+      const projectPrompt = `I've imported a local project folder named "${directoryHandle.name}" containing ${Object.keys(files).length} files. Can you help me understand this project and assist with any development tasks?`;
+      
+      toast.success(`Successfully imported ${Object.keys(files).length} files from ${directoryHandle.name}`);
+      setLocalFolderDialogOpen(false);
+      
+      // Navigate to new chat with project prompt and file loading flag
+      window.location.href = `/?template=${encodeURIComponent(projectPrompt)}&loadFiles=true`;
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to import folder';
+      console.error('Local folder import error:', error);
+      setLocalFolderError(errorMessage);
+    } finally {
+      setLocalFolderLoading(false);
+    }
+  };
+  
+  // Helper function to recursively read directory contents
+  const readDirectory = async (dirHandle: any, basePath: string, files: { [path: string]: string }) => {
+    for await (const entry of dirHandle.values()) {
+      const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
+      
+      if (entry.kind === 'file') {
+        try {
+          // Skip certain file types that we don't want to import
+          const skipExtensions = ['.git', '.DS_Store', 'Thumbs.db', '.env', '.env.local', '.env.production'];
+          const skipDirectories = ['node_modules', '.git', '.next', 'dist', 'build', '.vercel', '.netlify'];
+          
+          if (skipExtensions.some(ext => entry.name.endsWith(ext)) || 
+              skipDirectories.some(dir => entryPath.includes(`/${dir}/`) || entryPath.startsWith(`${dir}/`))) {
+            continue;
+          }
+          
+          const file = await entry.getFile();
+          
+          // Only read text files (check file size and type)
+          if (file.size > 1024 * 1024) { // Skip files larger than 1MB
+            console.warn(`Skipping large file: ${entryPath} (${file.size} bytes)`);
+            continue;
+          }
+          
+          // Try to read as text
+          const content = await file.text();
+          
+          // Basic check for binary content
+          if (content.includes('\0')) {
+            console.warn(`Skipping binary file: ${entryPath}`);
+            continue;
+          }
+          
+          files[entryPath] = content;
+          
+        } catch (fileError) {
+          console.warn(`Failed to read file ${entryPath}:`, fileError);
+        }
+      } else if (entry.kind === 'directory') {
+        // Skip certain directories
+        const skipDirectories = ['node_modules', '.git', '.next', 'dist', 'build', '.vercel', '.netlify'];
+        if (skipDirectories.includes(entry.name)) {
+          continue;
+        }
+        
+        // Recursively read subdirectory
+        await readDirectory(entry, entryPath, files);
+      }
+    }
   };
 
   async function fetchProjects(token: string) {
@@ -384,6 +500,16 @@ export function Menu() {
           >
             <span className="i-ph:file-text-duotone scale-110" />
             Start with template
+          </button>
+          
+          {/* Local Folder Button */}
+          <button
+            className="flex gap-2 items-center w-full bg-bolt-elements-sidebar-buttonBackgroundDefault text-bolt-elements-sidebar-buttonText hover:bg-bolt-elements-sidebar-buttonBackgroundHover rounded-md p-2 transition-theme"
+            onClick={() => setLocalFolderDialogOpen(true)}
+            title="Import from local folder"
+          >
+            <span className="i-ph:folder-open-duotone scale-110" />
+            Import local folder
           </button>
         </div>
         <div className="text-bolt-elements-textPrimary font-medium pl-6 pr-5 my-2">Your Chats</div>
@@ -561,6 +687,58 @@ export function Menu() {
           <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
             <DialogButton type="secondary" onClick={() => setTemplateDialogOpen(false)}>
               Cancel
+            </DialogButton>
+          </div>
+        </Dialog>
+      </DialogRoot>
+
+      {/* Local Folder Import Dialog */}
+      <DialogRoot open={localFolderDialogOpen}>
+        <Dialog onBackdrop={() => setLocalFolderDialogOpen(false)} onClose={() => setLocalFolderDialogOpen(false)}>
+          <DialogTitle>Import Local Folder</DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-4">
+              <p className="text-sm text-bolt-elements-textSecondary mb-4">
+                Import files from a local folder on your computer. This will replace any existing files in your current project.
+              </p>
+              
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <div className="i-ph:info text-blue-600 mt-0.5" />
+                  <div className="text-blue-800 text-sm">
+                    <p className="font-medium mb-1">Browser Support Required</p>
+                    <p>This feature requires a modern browser with File System Access API support (Chrome, Edge, or other Chromium-based browsers).</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="font-medium text-bolt-elements-textPrimary">What files will be imported?</h4>
+                <ul className="text-sm text-bolt-elements-textSecondary space-y-1">
+                  <li>• Text-based files (code, markdown, config files, etc.)</li>
+                  <li>• Files smaller than 1MB</li>
+                  <li>• Excludes: node_modules, .git, dist, build folders</li>
+                  <li>• Excludes: binary files, .env files, and system files</li>
+                </ul>
+              </div>
+              
+              {localFolderError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-800 text-sm">{localFolderError}</p>
+                </div>
+              )}
+            </div>
+          </DialogDescription>
+          <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
+            <DialogButton type="secondary" onClick={() => setLocalFolderDialogOpen(false)}>
+              Cancel
+            </DialogButton>
+            <DialogButton 
+              type="primary" 
+              onClick={handleLocalFolderImport}
+              disabled={localFolderLoading}
+            >
+              {localFolderLoading ? 'Importing...' : 'Select Folder'}
             </DialogButton>
           </div>
         </Dialog>

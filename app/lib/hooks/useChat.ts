@@ -5,6 +5,9 @@ import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { ChatService, type AttachedImage } from '~/lib/services/chatService';
 import { createScopedLogger } from '~/utils/logger';
+import { webcontainer } from '~/lib/webcontainer';
+import * as nodePath from 'node:path';
+import { toast } from 'react-toastify';
 
 const logger = createScopedLogger('useChat');
 
@@ -127,10 +130,80 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
     await append(message);
   }, [input, attachedImages, isLoading, append, setInput, runAnimation]);
 
+  // Function to load files from localStorage
+  const loadPendingFiles = useCallback(async () => {
+    try {
+      const pendingFilesData = localStorage.getItem('bolt_pending_files');
+      if (!pendingFilesData) {
+        return;
+      }
+
+      const fileData = JSON.parse(pendingFilesData);
+      const { files, type, repoName, folderName } = fileData;
+
+      if (!files || typeof files !== 'object') {
+        console.warn('Invalid file data in localStorage');
+        localStorage.removeItem('bolt_pending_files');
+        return;
+      }
+
+      console.log(`Loading ${Object.keys(files).length} files from ${type} source...`);
+      
+      // Get webcontainer instance
+      const container = await webcontainer;
+      
+      // Clear existing files first - remove all files in the workdir
+      try {
+        const filesInWorkdir = await container.fs.readdir('.', { withFileTypes: true });
+        for (const file of filesInWorkdir) {
+          if (file.isFile()) {
+            await container.fs.rm(file.name, { force: true });
+          } else if (file.isDirectory()) {
+            await container.fs.rm(file.name, { recursive: true, force: true });
+          }
+        }
+      } catch (clearError) {
+        console.warn('Failed to clear existing files:', clearError);
+      }
+      
+      // Create new files in the webcontainer
+      let createdFiles = 0;
+      for (const [path, content] of Object.entries(files)) {
+        try {
+          // Create directory structure if needed
+          const folder = nodePath.dirname(path);
+          if (folder !== '.') {
+            await container.fs.mkdir(folder, { recursive: true });
+          }
+          
+          // Write the file
+          await container.fs.writeFile(path, content as string);
+          createdFiles++;
+        } catch (fileError) {
+          console.warn(`Failed to create file ${path}:`, fileError);
+        }
+      }
+      
+      // Show the workbench
+      workbenchStore.setShowWorkbench(true);
+      
+      const sourceName = type === 'github' ? repoName : folderName;
+      console.log(`Successfully loaded ${createdFiles} files from ${sourceName}`);
+      
+      // Clean up localStorage
+      localStorage.removeItem('bolt_pending_files');
+      
+    } catch (error) {
+      console.error('Failed to load pending files:', error);
+      localStorage.removeItem('bolt_pending_files');
+    }
+  }, []);
+
   // Handle template parameter from URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const templateParam = urlParams.get('template');
+    const loadFilesParam = urlParams.get('loadFiles');
     
     if (templateParam && !chatStarted && messages.length === 0 && !isLoading) {
       const decodedTemplate = decodeURIComponent(templateParam);
@@ -142,6 +215,11 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
       // Run animation to transition from intro to chat
       runAnimation();
       
+      // Load files if requested
+      if (loadFilesParam === 'true') {
+        loadPendingFiles();
+      }
+      
       // Send the template prompt automatically
       append({
         role: 'user',
@@ -151,9 +229,10 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
       // Clean up the URL
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('template');
+      newUrl.searchParams.delete('loadFiles');
       window.history.replaceState({}, '', newUrl.toString());
     }
-  }, [chatStarted, messages.length, isLoading, append, runAnimation]);
+  }, [chatStarted, messages.length, isLoading, append, runAnimation, loadPendingFiles]);
 
   useEffect(() => {
     if (initialMessages.length > 0) {
