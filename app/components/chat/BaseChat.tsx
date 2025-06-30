@@ -48,7 +48,6 @@ const EXAMPLE_PROMPTS = [
   { text: 'How do I center a div?' },
 ];
 
-
 const TEXTAREA_MIN_HEIGHT = 76;
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -117,10 +116,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             {!chatStarted && (
               <div id="intro" className="mt-[26vh] max-w-chat mx-auto">
                 <h1 className="text-5xl text-center font-bold text-bolt-elements-textPrimary mb-2">
-                  Where ideas begin
+                  Bolt is <i className="italic">free</i> always
                 </h1>
                 <p className="mb-4 text-center text-bolt-elements-textSecondary">
-                  Bring ideas to life in seconds or get help on existing projects.
+                  Build apps and sites in chat. Start now. <a href="#" className="underline">Learn more</a>
                 </p>
               </div>
             )}
@@ -209,7 +208,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       minHeight: TEXTAREA_MIN_HEIGHT,
                       maxHeight: TEXTAREA_MAX_HEIGHT,
                     }}
-                    placeholder="How can Bolt help you today?"
+                    placeholder="Type your idea and we'll bring it to life"
                     translate="no"
                   />
                   <ClientOnly>
@@ -297,12 +296,16 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
             </div>
             {!chatStarted && (
               <>
+                <div className="flex flex-col items-center justify-center w-full max-w-xl mx-auto mt-8">
+                  <div className="text-sm text-bolt-elements-textSecondary mb-4">or import from</div>
+                  <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor hover:bg-bolt-elements-background-depth-3 transition-colors">
+                    <div className="i-ph:github-logo text-lg" />
+                    <span>Import GitHub</span>
+                  </button>
+                </div>
                 {/* Example Prompts Section */}
-                <div id="examples" className="relative w-full max-w-xl mx-auto mt-8 flex justify-center">
-                  <div className="flex flex-col space-y-2 [mask-image:linear-gradient(to_bottom,black_0%,transparent_180%)] hover:[mask-image:none]">
-                    <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-2 text-center">
-                      Or try an example
-                    </h3>
+                <div id="examples" className="relative w-full max-w-2xl mx-auto mt-8 flex justify-center">
+                  <div className="flex flex-wrap justify-center gap-4">
                     {EXAMPLE_PROMPTS.map((examplePrompt, index) => {
                       return (
                         <button
@@ -310,10 +313,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           onClick={(event) => {
                             sendMessage?.(event, examplePrompt.text);
                           }}
-                          className="group flex items-center w-full gap-2 justify-center bg-transparent text-bolt-elements-textTertiary hover:text-bolt-elements-textPrimary transition-theme"
+                          className="px-4 py-2 rounded-full bg-transparent border border-bolt-elements-borderColor text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 hover:text-bolt-elements-textPrimary transition-colors"
                         >
                           {examplePrompt.text}
-                          <div className="i-ph:arrow-bend-down-left" />
                         </button>
                       );
                     })}
