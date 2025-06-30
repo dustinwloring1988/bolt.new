@@ -25,7 +25,9 @@ export function Header() {
         </a>
       </div>
       <span className="flex-1 px-4 truncate text-center text-bolt-elements-textPrimary">
-        <ClientOnly>{() => <ChatDescription />}</ClientOnly>
+        {chatState.started && (
+          <ClientOnly>{() => <ChatDescription />}</ClientOnly>
+        )}
       </span>
       {chatState.started && (
         <ClientOnly>
