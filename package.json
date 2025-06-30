@@ -79,7 +79,8 @@
     "remix-island": "^0.2.0",
     "remix-utils": "^8.7.0",
     "shiki": "^3.7.0",
-    "unist-util-visit": "^5.0.0"
+    "unist-util-visit": "^5.0.0",
+    "ignore": "^6.0.2"
   },
   "devDependencies": {
     "@blitz/eslint-plugin": "0.1.4",

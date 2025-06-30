@@ -4,6 +4,10 @@ import { getSystemPrompt } from './prompts';
 import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
 import { getAPIKey } from '~/lib/.server/llm/api-key';
 import { getAnthropicModel } from '~/lib/.server/llm/model';
+import { createSummary } from './create-summary';
+import { selectContext } from './select-context';
+import { createFilesContext } from './utils';
+import type { FileMap } from './context-constants';
 
 interface ToolResult<Name extends string, Args, Result> {
   state: 'result';
