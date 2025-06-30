@@ -32,7 +32,6 @@ This version of Bolt introduces a suite of powerful features and improvements ov
 - **Local Import**: Allow the import of local projects.
 
 ### ✨ Features Coming Soon 
-- **Vite 7**: Update Vite to version 7. This will require so refactoring of some code as well.
 - **Auto fix errors**: Auto detect and fix errors.
 - **Enhanced Prompts**: All prompts still need to be updated.
 

@@ -100,6 +100,7 @@ export class SupabaseService {
       }
 
       const projects = await response.json();
+      if (!Array.isArray(projects)) throw new Error('Invalid projects response');
       return projects.map((project: any) => ({
         id: project.id,
         name: project.name,
@@ -132,6 +133,7 @@ export class SupabaseService {
       }
 
       const keys = await response.json();
+      if (!Array.isArray(keys)) throw new Error('Invalid keys response');
       const anonKey = keys.find((key: any) => key.name === 'anon public');
       const serviceKey = keys.find((key: any) => key.name === 'service_role');
 

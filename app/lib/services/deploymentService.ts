@@ -76,16 +76,24 @@ export class DeploymentService {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || `Netlify deployment failed: ${response.statusText}`);
+        if (error instanceof Error) {
+          throw new Error(error.message || `Netlify deployment failed: ${response.statusText}`);
+        } else {
+          throw new Error(String(error) || `Netlify deployment failed: ${response.statusText}`);
+        }
       }
       
       const result = await response.json();
       
-      return {
-        success: true,
-        url: result.ssl_url || result.url,
-        deploymentId: result.id,
-      };
+      if (typeof result === 'object' && result !== null && ('ssl_url' in result || 'url' in result)) {
+        return {
+          success: true,
+          url: (result as any).ssl_url || (result as any).url,
+          deploymentId: (result as any).id,
+        };
+      } else {
+        throw new Error('Invalid response from Netlify');
+      }
     } catch (error) {
       logger.error('Netlify deployment failed:', error);
       return {
@@ -119,16 +127,24 @@ export class DeploymentService {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || `Vercel deployment failed: ${response.statusText}`);
+        if (error instanceof Error) {
+          throw new Error((error as any).error?.message || error.message || `Vercel deployment failed: ${response.statusText}`);
+        } else {
+          throw new Error(String(error) || `Vercel deployment failed: ${response.statusText}`);
+        }
       }
       
       const result = await response.json();
       
-      return {
-        success: true,
-        url: `https://${result.url}`,
-        deploymentId: result.id,
-      };
+      if (typeof result === 'object' && result !== null && 'url' in result && 'id' in result) {
+        return {
+          success: true,
+          url: `https://${(result as any).url}`,
+          deploymentId: (result as any).id,
+        };
+      } else {
+        throw new Error('Invalid response from Vercel');
+      }
     } catch (error) {
       logger.error('Vercel deployment failed:', error);
       return {
@@ -221,11 +237,15 @@ export class DeploymentService {
             'failed': 'error',
           };
           
-          return {
-            status: netlifyStatusMap[netlifyData.state] || 'deploying',
-            url: netlifyData.state === 'ready' ? netlifyData.ssl_url || netlifyData.deploy_ssl_url : undefined,
-            error: netlifyData.state === 'error' || netlifyData.state === 'failed' ? netlifyData.error_message : undefined,
-          };
+          if (typeof netlifyData === 'object' && netlifyData !== null && 'state' in netlifyData) {
+            return {
+              status: netlifyStatusMap[(netlifyData as any).state] || 'deploying',
+              url: (netlifyData as any).state === 'ready' ? (netlifyData as any).ssl_url || (netlifyData as any).deploy_ssl_url : undefined,
+              error: (netlifyData as any).state === 'error' || (netlifyData as any).state === 'failed' ? (netlifyData as any).error_message : undefined,
+            };
+          } else {
+            throw new Error('Invalid response from Netlify');
+          }
           
         case 'vercel':
           const vercelResponse = await fetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
@@ -246,11 +266,15 @@ export class DeploymentService {
             'QUEUED': 'queued',
           };
           
-          return {
-            status: vercelStatusMap[vercelData.readyState] || 'deploying',
-            url: vercelData.readyState === 'READY' ? `https://${vercelData.url}` : undefined,
-            error: vercelData.readyState === 'ERROR' ? 'Deployment failed' : undefined,
-          };
+          if (typeof vercelData === 'object' && vercelData !== null && 'readyState' in vercelData) {
+            return {
+              status: vercelStatusMap[(vercelData as any).readyState] || 'deploying',
+              url: (vercelData as any).readyState === 'READY' ? `https://${(vercelData as any).url}` : undefined,
+              error: (vercelData as any).readyState === 'ERROR' ? 'Deployment failed' : undefined,
+            };
+          } else {
+            throw new Error('Invalid response from Vercel');
+          }
           
         default:
           throw new Error(`Unsupported provider: ${provider}`);

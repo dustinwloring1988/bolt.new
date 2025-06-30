@@ -160,7 +160,11 @@ export class GitHubService {
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || `Failed to create repository: ${response.statusText}`);
+        if (error instanceof Error) {
+          throw new Error(error.message || `Failed to create repository: ${response.statusText}`);
+        } else {
+          throw new Error(String(error) || `Failed to create repository: ${response.statusText}`);
+        }
       }
       
       return await response.json();

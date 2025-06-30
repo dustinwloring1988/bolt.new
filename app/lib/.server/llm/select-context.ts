@@ -54,7 +54,7 @@ export async function selectContext(props: {
   const contextFiles: FileMap = {};
 
   if (codeContext?.type === 'codeContext') {
-    const codeContextFiles: string[] = codeContext.files;
+    const codeContextFiles: string[] = codeContext.files ?? [];
     Object.keys(files || {}).forEach((path) => {
       let relativePath = path;
 
@@ -133,7 +133,7 @@ export async function selectContext(props: {
         * if the buffer is full, you need to exclude files that is not needed and include files that is relevent.
 
         `,
-    model: getAnthropicModel(getAPIKey(serverEnv), currentModel),
+    model: getAnthropicModel(getAPIKey(serverEnv ?? (() => { throw new Error('Env is required'); })()), currentModel),
   });
 
   const response = resp.text;

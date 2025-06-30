@@ -269,7 +269,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           }}
                         >
                           <div className="i-ph:chats text-xl" />
-                          {chatMode === 'discuss' ? <span className="text-xs">Discuss</span> : null}
+                          {chatMode === 'discuss' ? <span className="text-xs">Discuss</span> : <></>}
                         </IconButton>
                       )}
                     </div>

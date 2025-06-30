@@ -239,7 +239,7 @@ export const storeRegistry = new StoreRegistry();
 
 // Export convenience methods
 export const registerStore = (name: string, store: any) => storeRegistry.register(name, store);
-export const getStore = <T>(name: string): T | undefined => storeRegistry.get<T>(name);
+export const getStore = <T extends StoreState>(name: string): T | undefined => storeRegistry.get<T>(name);
 export const unregisterStore = (name: string) => storeRegistry.unregister(name);
 export const listStores = () => storeRegistry.list();
 export const resetAllStores = () => storeRegistry.reset();

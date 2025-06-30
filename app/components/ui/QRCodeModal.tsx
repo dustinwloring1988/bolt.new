@@ -73,12 +73,14 @@ export function QRCodeModal() {
 
           <div className="flex gap-3 justify-center">
             <DialogButton 
+              type="secondary"
               onClick={copyToClipboard}
               className="bg-bolt-elements-button-secondary-background hover:bg-bolt-elements-button-secondary-backgroundHover text-bolt-elements-button-secondary-text px-4 py-2 rounded-lg"
             >
               Copy URL
             </DialogButton>
             <DialogButton 
+              type="primary"
               onClick={handleClose}
               className="bg-bolt-elements-button-primary-background hover:bg-bolt-elements-button-primary-backgroundHover text-bolt-elements-button-primary-text px-4 py-2 rounded-lg"
             >

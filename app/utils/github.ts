@@ -207,7 +207,11 @@ export async function createGitHubRepo(options: GitHubCreateRepoOptions): Promis
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Failed to create repository: ${error.message || response.statusText}`);
+    if (error instanceof Error) {
+      throw new Error(`Failed to create repository: ${error.message || response.statusText}`);
+    } else {
+      throw new Error(`Failed to create repository: ${String(error) || response.statusText}`);
+    }
   }
   
   return await response.json();
@@ -257,7 +261,10 @@ export async function createGitHubBranch(repo: GitHubRepo, branchName: string, f
   }
   
   const refData = await refResponse.json();
-  const sha = refData.object.sha;
+  if (typeof refData !== 'object' || refData === null || !('object' in refData)) {
+    throw new Error('Invalid refData');
+  }
+  const sha = (refData as any).object.sha;
   
   // Create the new branch
   const response = await fetch(`https://api.github.com/repos/${owner}/${name}/git/refs`, {
@@ -271,7 +278,11 @@ export async function createGitHubBranch(repo: GitHubRepo, branchName: string, f
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Failed to create branch: ${error.message || response.statusText}`);
+    if (error instanceof Error) {
+      throw new Error(`Failed to create branch: ${error.message || response.statusText}`);
+    } else {
+      throw new Error(`Failed to create branch: ${String(error) || response.statusText}`);
+    }
   }
   
   return await response.json();
@@ -296,7 +307,10 @@ export async function pushFilesToGitHub(
     }
     
     const refData = await refResponse.json();
-    const latestCommitSha = refData.object.sha;
+    if (typeof refData !== 'object' || refData === null || !('object' in refData)) {
+      throw new Error('Invalid refData');
+    }
+    const latestCommitSha = (refData as any).object.sha;
     
     // Get the latest commit to get the tree SHA
     const commitResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/commits/${latestCommitSha}`, {
@@ -304,7 +318,10 @@ export async function pushFilesToGitHub(
     });
     
     const commitData = await commitResponse.json();
-    const baseTreeSha = commitData.tree.sha;
+    if (typeof commitData !== 'object' || commitData === null || !('tree' in commitData)) {
+      throw new Error('Invalid commitData');
+    }
+    const baseTreeSha = (commitData as any).tree.sha;
     
     // Create blobs for all files
     const blobs: { [path: string]: string } = {};
@@ -323,7 +340,10 @@ export async function pushFilesToGitHub(
       }
       
       const blobData = await blobResponse.json();
-      blobs[path] = blobData.sha;
+      if (typeof blobData !== 'object' || blobData === null || !('sha' in blobData)) {
+        throw new Error('Invalid blobData');
+      }
+      blobs[path] = (blobData as any).sha;
     }
     
     // Create a new tree
@@ -349,13 +369,17 @@ export async function pushFilesToGitHub(
     
     const newTreeData = await treeResponse.json();
     
+    if (typeof newTreeData !== 'object' || newTreeData === null || !('sha' in newTreeData)) {
+      throw new Error('Invalid newTreeData');
+    }
+    
     // Create a new commit
     const newCommitResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/commits`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         message: commitMessage,
-        tree: newTreeData.sha,
+        tree: (newTreeData as any).sha,
         parents: [latestCommitSha],
       }),
     });
@@ -365,6 +389,10 @@ export async function pushFilesToGitHub(
     }
     
     const newCommitData = await newCommitResponse.json();
+    
+    if (typeof newCommitData !== 'object' || newCommitData === null || !('sha' in newCommitData)) {
+      throw new Error('Invalid newCommitData');
+    }
     
     // Update the branch reference
     const updateRefResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/refs/heads/${branch}`, {
@@ -379,7 +407,7 @@ export async function pushFilesToGitHub(
       throw new Error('Failed to update branch reference');
     }
     
-    return newCommitData;
+    return newCommitData as GitHubCommit;
   } catch (error) {
     console.error('Error pushing files to GitHub:', error);
     throw error;
@@ -397,7 +425,11 @@ export async function forkGitHubRepo(repo: GitHubRepo): Promise<any> {
   
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Failed to fork repository: ${error.message || response.statusText}`);
+    if (error instanceof Error) {
+      throw new Error(`Failed to fork repository: ${error.message || response.statusText}`);
+    } else {
+      throw new Error(`Failed to fork repository: ${String(error) || response.statusText}`);
+    }
   }
   
   return await response.json();

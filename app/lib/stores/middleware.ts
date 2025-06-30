@@ -219,7 +219,7 @@ export function createCachingMiddleware<T>(
  * Middleware for debouncing store actions
  */
 export function createDebounceMiddleware(delay: number = 300): StoreMiddleware {
-  const pendingActions = new Map<string, number>();
+  const pendingActions = new Map<string, any>();
 
   return (action: StoreActionHandler, context: StoreActionContext): StoreActionHandler => {
     return async (data, actionContext) => {

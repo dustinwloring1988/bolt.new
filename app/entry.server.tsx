@@ -28,7 +28,7 @@ export default async function handleRequest(
       controller.enqueue(
         new Uint8Array(
           new TextEncoder().encode(
-            `<!DOCTYPE html><html lang="en" data-theme="${themeStore.value}"><head>${head}</head><body><div id="root" class="w-full h-full">`,
+            `<!DOCTYPE html><html lang="en" data-theme="${themeStore.getEffectiveTheme()}"><head>${head}</head><body><div id="root" class="w-full h-full">`,
           ),
         ),
       );

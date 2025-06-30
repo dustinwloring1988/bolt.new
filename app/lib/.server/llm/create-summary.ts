@@ -145,7 +145,7 @@ ${slicedMessages
 
 Please provide a summary of the chat till now including the hitorical summary of the chat.
 `,
-    model: getAnthropicModel(getAPIKey(serverEnv), currentModel),
+    model: getAnthropicModel(getAPIKey(serverEnv ?? (() => { throw new Error('Env is required'); })()), currentModel),
   });
 
   const response = resp.text;

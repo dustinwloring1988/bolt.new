@@ -32,7 +32,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         messages.push({ role: 'assistant', content });
         messages.push({ role: 'user', content: CONTINUE_PROMPT });
 
-        const result = await streamText(messages, context.cloudflare.env, { ...options, modelId: model, chatMode });
+        const result = await streamText(messages, context.cloudflare.env, { ...options, modelId: model });
 
         return (
           /**
@@ -43,7 +43,6 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         );
       },
       modelId: model,
-      chatMode,
     };
 
     const result = await streamText(messages, context.cloudflare.env, options);

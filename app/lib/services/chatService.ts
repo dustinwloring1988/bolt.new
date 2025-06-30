@@ -119,6 +119,7 @@ export class ChatService {
     const finalContent = this.formatMessageWithImages(processedContent, attachedImages);
     
     return {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       role: 'user',
       content: finalContent,
     };

@@ -160,12 +160,11 @@ export class ThemeStore {
    */
   public getEffectiveTheme(): 'light' | 'dark' {
     const state = this.state.get();
-    
     if (state.current === 'auto') {
-      return state.systemPreference;
+      // Ensure systemPreference is not 'auto', fallback to 'light' if it is
+      return state.systemPreference === 'dark' ? 'dark' : 'light';
     }
-    
-    return state.current;
+    return state.current === 'dark' ? 'dark' : 'light';
   }
 
   /**

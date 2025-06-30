@@ -145,12 +145,16 @@ export class NetlifyStatusChecker {
       'failed': 'error',
     };
 
-    return {
-      status: statusMap[data.state] || 'deploying',
-      url: data.state === 'ready' ? data.ssl_url || data.deploy_ssl_url : undefined,
-      error: data.state === 'error' || data.state === 'failed' ? data.error_message : undefined,
-      readyAt: data.published_at,
-    };
+    if (typeof data === 'object' && data !== null && 'state' in data) {
+      return {
+        status: statusMap[(data as any).state] || 'deploying',
+        url: (data as any).state === 'ready' ? (data as any).ssl_url || (data as any).deploy_ssl_url : undefined,
+        error: (data as any).state === 'error' || (data as any).state === 'failed' ? (data as any).error_message : undefined,
+        readyAt: (data as any).published_at,
+      };
+    } else {
+      throw new Error('Invalid response from Netlify');
+    }
   }
 }
 
@@ -180,12 +184,16 @@ export class VercelStatusChecker {
       'QUEUED': 'queued',
     };
 
-    return {
-      status: statusMap[data.readyState] || 'deploying',
-      url: data.readyState === 'READY' ? `https://${data.url}` : undefined,
-      error: data.readyState === 'ERROR' ? 'Deployment failed' : undefined,
-      readyAt: data.ready ? new Date(data.ready).toISOString() : undefined,
-    };
+    if (typeof data === 'object' && data !== null && 'readyState' in data) {
+      return {
+        status: statusMap[(data as any).readyState] || 'deploying',
+        url: (data as any).readyState === 'READY' ? `https://${(data as any).url}` : undefined,
+        error: (data as any).readyState === 'ERROR' ? 'Deployment failed' : undefined,
+        readyAt: (data as any).ready ? new Date((data as any).ready).toISOString() : undefined,
+      };
+    } else {
+      throw new Error('Invalid response from Vercel');
+    }
   }
 }
 
