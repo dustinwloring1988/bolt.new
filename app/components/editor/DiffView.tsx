@@ -1,7 +1,6 @@
 import React from 'react';
-import type { FileMap } from '~/lib/stores/files';
 import { classNames } from '~/utils/classNames';
-import { computeFileModifications, diffFiles } from '~/utils/diff';
+import { computeFileModifications } from '~/utils/diff';
 
 interface DiffViewProps {
   modifications?: ReturnType<typeof computeFileModifications>;
@@ -16,16 +15,21 @@ interface DiffLineProps {
 const DiffLine: React.FC<DiffLineProps> = ({ line, type, lineNumber }) => {
   const getLineClass = () => {
     switch (type) {
-      case 'added':
+      case 'added': {
         return 'bg-green-50 text-green-800 border-l-2 border-green-400';
-      case 'removed':
+      }
+      case 'removed': {
         return 'bg-red-50 text-red-800 border-l-2 border-red-400';
-      case 'context':
+      }
+      case 'context': {
         return 'bg-gray-50 text-gray-700';
-      case 'header':
+      }
+      case 'header': {
         return 'bg-blue-50 text-blue-800 font-medium';
-      default:
+      }
+      default: {
         return '';
+      }
     }
   };
 

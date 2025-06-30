@@ -7,13 +7,11 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
-import { BoltTerminal } from './terminal/BoltTerminal';
 import { DiffView } from '~/components/editor/DiffView';
 import {
   type OnChangeCallback as OnEditorChange,
   type OnScrollCallback as OnEditorScroll,
 } from '~/components/editor/codemirror/CodeMirrorEditor';
-import { deployToNetlify, deployToVercel } from '~/components/sidebar/Menu.client';
 import { DialogRoot, Dialog, DialogTitle, DialogDescription, DialogButton } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
 import { PanelHeaderButton } from '~/components/ui/PanelHeaderButton';
@@ -94,7 +92,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const unsavedFiles = useStore(workbenchStore.unsavedFiles);
   const files = useStore(workbenchStore.files);
   const selectedView = useStore(workbenchStore.currentView);
-  const showTerminal = useStore(workbenchStore.showTerminal);
+  const _showTerminal = useStore(workbenchStore.showTerminal);
   const [boltOutputBuffer, setBoltOutputBuffer] = useState<string[]>([]);
   const [activeTerminalTab, setActiveTerminalTab] = useState<'bolt' | number>('bolt');
   const [terminalCount, setTerminalCount] = useState(1);
@@ -105,10 +103,10 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const [supabaseToken, setSupabaseToken] = useState(localStorage.getItem('bolt_supabase_token') || '');
   const [projects, setProjects] = useState<{ id: string; name: string; db_host: string }[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
-  const [status, setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
+  const [_status, _setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
   const [error, setError] = useState<string>('');
 
-  // GitHub Integration State
+  // github Integration State
   const [githubDialogOpen, setGithubDialogOpen] = useState(false);
   const [githubDialogType, setGithubDialogType] = useState<'clone' | 'push' | 'create'>('clone');
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
@@ -151,7 +149,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
             setStatus('error');
             setError('Invalid Supabase credentials or URL.');
           }
-        } catch (e) {
+        } catch (_e) {
           setStatus('error');
           setError('Could not connect to Supabase.');
         }
@@ -166,11 +164,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     setGlobalShellOutputHandler((data: string) => {
       setBoltOutputBuffer((prev) => [...prev, data]);
 
-      // Check for Expo URLs in terminal output
+      // check for Expo URLs in terminal output
       const expoUrl = detectExpoUrl(data);
 
       if (expoUrl) {
-        // Auto-show QR code when Expo URL is detected
+        // auto-show QR code when Expo URL is detected
         showQRCode(expoUrl);
       }
     });
@@ -180,7 +178,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     };
   }, []);
 
-  // Listen for integration dialog events from header
+  // listen for integration dialog events from header
   useEffect(() => {
     const handleOpenSupabaseDialog = () => {
       setSupabaseDialogOpen(true);
@@ -246,7 +244,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
       const data = await res.json();
 
       if (Array.isArray(data)) {
-        // Find anon/public key
+        // find anon/public key
         const anonKey = data.find((k: any) => k.name === 'anon' || k.name === 'public');
 
         if (anonKey && anonKey.api_key) {
@@ -306,7 +304,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     localStorage.removeItem('bolt_supabase_key');
     localStorage.removeItem('bolt_supabase_token');
 
-    // Try to remove .env from WebContainer
+    // try to remove .env from WebContainer
     if (window.syncSupabaseEnv) {
       try {
         if (window.webcontainer) {
@@ -339,9 +337,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     workbenchStore.resetCurrentDocument();
   }, []);
 
-  // GitHub Integration Functions
+  // github Integration Functions
   useEffect(() => {
-    // Check GitHub token validity on mount
+    // check GitHub token validity on mount
     const checkGitHubToken = async () => {
       const token = getGitHubToken();
 
@@ -355,7 +353,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     checkGitHubToken();
   }, []);
 
-  const openGitHubDialog = (type: 'clone' | 'push' | 'create') => {
+  const _openGitHubDialog = (type: 'clone' | 'push' | 'create') => {
     setGithubDialogType(type);
     setGithubError('');
     setGithubDialogOpen(true);
@@ -393,14 +391,14 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
       const files = await fetchGitHubRepoFiles(repo);
 
-      // Clear existing files first
+      // clear existing files first
       const currentFiles = workbenchStore.files.get();
 
       for (const filePath of Object.keys(currentFiles)) {
         await workbenchStore.deleteFile(filePath);
       }
 
-      // Add new files to the workbench
+      // add new files to the workbench
       for (const [path, content] of Object.entries(files)) {
         await workbenchStore.setCurrentDocumentContent(content);
         await workbenchStore.saveFile(path);
@@ -460,7 +458,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         private: githubPrivateRepo,
       });
 
-      // After creating, push current files
+      // after creating, push current files
       const files = await getAllFilesForDeploy();
 
       const repo: GitHubRepo = {
@@ -508,9 +506,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   };
 
-  // --- Download as Zip helpers ---
+  // --- download as Zip helpers ---
   async function getAllFilesForDeploy() {
-    // Save all files first to ensure latest content
+    // save all files first to ensure latest content
     await workbenchStore.saveAllFiles();
 
     const fileMap = workbenchStore.files.get();
@@ -525,7 +523,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     return files;
   }
 
-  async function createProjectZip(files: { [key: string]: string }): Promise<Blob> {
+  async function _createProjectZip(files: { [key: string]: string }): Promise<Blob> {
     const zip = new JSZip();
 
     for (const [path, content] of Object.entries(files)) {

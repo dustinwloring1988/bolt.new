@@ -22,7 +22,15 @@ interface MarkdownProps {
 }
 
 export const Markdown = memo(
-  ({ children, html = false, limitedMarkdown = false, append, chatMode, setChatMode, model }: MarkdownProps) => {
+  ({
+    children,
+    html = false,
+    limitedMarkdown = false,
+    append,
+    chatMode: _chatMode,
+    setChatMode,
+    model,
+  }: MarkdownProps) => {
     logger.trace('Render');
 
     const components = useMemo(() => {

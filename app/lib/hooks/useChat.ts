@@ -1,7 +1,7 @@
 import * as nodePath from 'node:path';
-import React from 'react';
 import type { Message } from 'ai';
 import { useChat as useAIChat } from 'ai/react';
+import React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChatService, type AttachedImage } from '~/lib/services/chatService';
 import { chatStore } from '~/lib/stores/chat';

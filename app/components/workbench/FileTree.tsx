@@ -58,7 +58,7 @@ export const FileTree = memo(
         : new Set<string>();
     });
 
-    const handleContextMenu = useCallback((fileOrFolder: any, e: React.MouseEvent) => {
+    const handleContextMenu = useCallback((_fileOrFolder: any, _e: React.MouseEvent) => {
       // no-op: ContextMenu handles open/position
     }, []);
 

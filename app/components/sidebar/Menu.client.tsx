@@ -1,4 +1,3 @@
-import * as nodePath from 'node:path';
 import { motion, type Variants } from 'framer-motion';
 import JSZip from 'jszip';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,16 +14,7 @@ import {
 } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
-import {
-  db,
-  deleteById,
-  getAll,
-  chatId,
-  type ChatHistoryItem,
-  exportAllChats,
-  deleteAllChats,
-} from '~/lib/persistence';
-import { deploymentStatusService, NetlifyStatusChecker, VercelStatusChecker } from '~/lib/services/deploymentStatus';
+import { db, deleteById, getAll, chatId, type ChatHistoryItem } from '~/lib/persistence';
 import {
   createDeploymentStartAlert,
   createDeploymentSuccessAlert,
@@ -32,18 +22,14 @@ import {
 } from '~/lib/stores/deploymentAlerts';
 import { settingsStore } from '~/lib/stores/settings';
 import { workbenchStore } from '~/lib/stores/workbench';
-import { webcontainer } from '~/lib/webcontainer';
 import { cubicEasingFn } from '~/utils/easings';
 import { generateTemplatePrompt } from '~/utils/github';
 import {
   parseGitHubRepo,
   fetchGitHubRepoFiles,
-  pushFilesToGitHub,
-  createGitHubRepo,
   getGitHubBranches,
   getUserRepos,
   validateGitHubToken,
-  type GitHubRepo,
   type GitHubBranch,
 } from '~/utils/github';
 import { logger } from '~/utils/logger';
@@ -85,23 +71,23 @@ export function Menu() {
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [supabaseDialogOpen, setSupabaseDialogOpen] = useState(false);
+  const [_supabaseDialogOpen, _setSupabaseDialogOpen] = useState(false);
   const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('bolt_supabase_url') || '');
-  const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('bolt_supabase_key') || '');
-  const [supabaseToken, setSupabaseToken] = useState(localStorage.getItem('bolt_supabase_token') || '');
+  const [supabaseKey, _setSupabaseKey] = useState(localStorage.getItem('bolt_supabase_key') || '');
+  const [supabaseToken, _setSupabaseToken] = useState(localStorage.getItem('bolt_supabase_token') || '');
   const [projects, setProjects] = useState<{ id: string; name: string; db_host: string }[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [status, setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
-  const [error, setError] = useState<string>('');
+  const [_selectedProject, _setSelectedProject] = useState<string>('');
+  const [_status, _setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
+  const [_error, _setError] = useState<string>('');
 
-  // GitHub Integration State
+  // github Integration State
   const [githubDialogOpen, setGithubDialogOpen] = useState(false);
-  const [githubDialogType, setGithubDialogType] = useState<'clone' | 'push' | 'create'>('clone');
+  const [githubDialogType, _setGithubDialogType] = useState<'clone' | 'push' | 'create'>('clone');
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
-  const [githubCommitMessage, setGithubCommitMessage] = useState('Update project files');
-  const [githubRepoName, setGithubRepoName] = useState('');
-  const [githubRepoDescription, setGithubRepoDescription] = useState('');
-  const [githubPrivateRepo, setGithubPrivateRepo] = useState(false);
+  const [githubCommitMessage, _setGithubCommitMessage] = useState('Update project files');
+  const [githubRepoName, _setGithubRepoName] = useState('');
+  const [githubRepoDescription, _setGithubRepoDescription] = useState('');
+  const [githubPrivateRepo, _setGithubPrivateRepo] = useState(false);
   const [githubBranches, setGithubBranches] = useState<GitHubBranch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState('main');
   const [userRepos, setUserRepos] = useState<any[]>([]);
@@ -109,10 +95,10 @@ export function Menu() {
   const [githubError, setGithubError] = useState('');
   const [githubTokenValid, setGithubTokenValid] = useState<boolean | null>(null);
 
-  // Template Modal State
+  // template Modal State
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
 
-  // Local Folder Modal State
+  // local Folder Modal State
   const [localFolderDialogOpen, setLocalFolderDialogOpen] = useState(false);
   const [localFolderLoading, setLocalFolderLoading] = useState(false);
   const [localFolderError, setLocalFolderError] = useState('');
@@ -178,7 +164,7 @@ export function Menu() {
   }, []);
 
   useEffect(() => {
-    // Check connection status on mount or when credentials change
+    // check connection status on mount or when credentials change
     async function checkStatus() {
       setError('');
 
@@ -193,7 +179,7 @@ export function Menu() {
             setStatus('error');
             setError('Invalid Supabase credentials or URL.');
           }
-        } catch (e) {
+        } catch (_e) {
           setStatus('error');
           setError('Could not connect to Supabase.');
         }
@@ -204,9 +190,9 @@ export function Menu() {
     checkStatus();
   }, [supabaseUrl, supabaseKey]);
 
-  // GitHub Integration Functions
+  // github Integration Functions
   useEffect(() => {
-    // Check GitHub token validity on mount
+    // check GitHub token validity on mount
     const checkGitHubToken = async () => {
       const token = getGitHubToken();
 
@@ -262,7 +248,7 @@ export function Menu() {
       const files = await fetchGitHubRepoFiles(repo);
       console.log('Successfully fetched files:', Object.keys(files));
 
-      // Store files in localStorage for loading after chat starts
+      // store files in localStorage for loading after chat starts
       const fileData = {
         files,
         type: 'github',
@@ -271,20 +257,20 @@ export function Menu() {
       };
       localStorage.setItem('bolt_pending_files', JSON.stringify(fileData));
 
-      // Create a new chat with the cloned project
+      // create a new chat with the cloned project
       const projectPrompt = `I've cloned the repository ${repo.owner}/${repo.name} from GitHub. The project contains ${Object.keys(files).length} files. Can you help me understand this project and assist with any development tasks?`;
 
       toast.success(`Successfully cloned ${repo.owner}/${repo.name}`);
       setGithubDialogOpen(false);
       setGithubRepoUrl('');
 
-      // Navigate to new chat with project prompt and file loading flag
+      // navigate to new chat with project prompt and file loading flag
       window.location.href = `/?template=${encodeURIComponent(projectPrompt)}&loadFiles=true`;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to clone repository';
       console.error('Clone error:', error);
 
-      // Provide more specific error messages
+      // provide more specific error messages
       if (errorMessage.includes('404')) {
         setGithubError('Repository not found. Please check the repository URL and ensure it exists and is accessible.');
       } else if (errorMessage.includes('403')) {
@@ -437,9 +423,9 @@ export function Menu() {
   };
 
   async function fetchProjects(token: string) {
-    setError('');
+    _setError('');
     setProjects([]);
-    setSelectedProject('');
+    _setSelectedProject('');
 
     try {
       const res = await fetch('https://api.supabase.com/v1/projects', {
@@ -460,16 +446,16 @@ export function Menu() {
         setProjects(data);
       } else {
         setProjects([]);
-        setError('Unexpected response from Supabase API.');
+        _setError('Unexpected response from Supabase API.');
       }
     } catch (e: any) {
-      setError(e.message || 'Failed to fetch projects.');
+      _setError(e.message || 'Failed to fetch projects.');
       setProjects([]);
     }
   }
 
-  function handleProjectSelect(id: string) {
-    setSelectedProject(id);
+  function _handleProjectSelect(id: string) {
+    _setSelectedProject(id);
 
     const project = projects.find((p) => p.id === id);
 
@@ -479,20 +465,20 @@ export function Menu() {
     }
   }
 
-  async function handleSupabaseSave() {
-    setError('');
+  async function _handleSupabaseSave() {
+    _setError('');
     localStorage.setItem('bolt_supabase_url', supabaseUrl);
     localStorage.setItem('bolt_supabase_key', supabaseKey);
     localStorage.setItem('bolt_supabase_token', supabaseToken);
-    setSupabaseDialogOpen(false);
+    _setSupabaseDialogOpen(false);
 
     if (window.syncSupabaseEnv) {
       try {
         await window.syncSupabaseEnv(supabaseUrl, supabaseKey);
-        setStatus('connected');
+        _setStatus('connected');
       } catch (e: any) {
-        setStatus('error');
-        setError(e.message || 'Failed to sync with WebContainer.');
+        _setStatus('error');
+        _setError(e.message || 'Failed to sync with WebContainer.');
       }
     }
   }

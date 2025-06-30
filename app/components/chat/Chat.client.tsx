@@ -2,20 +2,18 @@ import { useStore } from '@nanostores/react';
 import type { Message } from 'ai';
 import { useAnimate } from 'framer-motion';
 import { memo, useEffect, useRef, useMemo, useCallback } from 'react';
-import { cssTransition, toast, ToastContainer } from 'react-toastify';
+import { cssTransition, ToastContainer } from 'react-toastify';
 import { BaseChat } from './BaseChat';
 import { useMessageParser, usePromptEnhancer, useShortcuts, useSnapScroll, useChat } from '~/lib/hooks';
 import { useChatHistory } from '~/lib/persistence';
 import { chatStore } from '~/lib/stores/chat';
 import { cubicEasingFn } from '~/utils/easings';
-import { createScopedLogger, renderLogger } from '~/utils/logger';
+import { renderLogger } from '~/utils/logger';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
   exit: 'animated fadeOutRight',
 });
-
-const logger = createScopedLogger('Chat');
 
 export function Chat() {
   renderLogger.trace('Chat');
@@ -71,7 +69,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   const [animationScope, animate] = useAnimate();
 
-  // Use the new useChat hook
+  // use the new useChat hook
   const {
     messages,
     isLoading,
@@ -89,7 +87,6 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     setSelectedModel,
     setChatMode,
     runAnimation,
-    scrollTextArea,
   } = useChat({ initialMessages, storeMessageHistory });
 
   const { enhancingPrompt, promptEnhanced, enhancePrompt, resetEnhancer } = usePromptEnhancer();
@@ -97,8 +94,8 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
 
-  // Enhanced runAnimation with actual animations
-  const enhancedRunAnimation = useCallback(async () => {
+  // enhanced runAnimation with actual animations
+  const _enhancedRunAnimation = useCallback(async () => {
     if (chatStarted) {
       return;
     }
@@ -111,7 +108,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     await runAnimation();
   }, [chatStarted, animate, runAnimation]);
 
-  // Override the scrollTextArea function from the hook
+  // override the scrollTextArea function from the hook
   const enhancedScrollTextArea = useCallback(() => {
     const textarea = textareaRef.current;
 
@@ -120,7 +117,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     }
   }, []);
 
-  // Handle textarea height adjustment
+  // handle textarea height adjustment
   useEffect(() => {
     const textarea = textareaRef.current;
 
@@ -131,7 +128,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       const scrollHeight = textarea.scrollHeight;
       const newHeight = `${Math.min(scrollHeight, TEXTAREA_MAX_HEIGHT)}px`;
 
-      // Only update if the height actually changed
+      // only update if the height actually changed
       if (currentHeight !== newHeight) {
         textarea.style.height = newHeight;
         textarea.style.overflowY = scrollHeight > TEXTAREA_MAX_HEIGHT ? 'auto' : 'hidden';
@@ -139,7 +136,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     }
   }, [input, textareaRef, TEXTAREA_MAX_HEIGHT]);
 
-  // Enhanced sendMessage that includes enhancer reset
+  // enhanced sendMessage that includes enhancer reset
   const enhancedSendMessage = useCallback(
     async (event: React.UIEvent, messageInput?: string) => {
       await sendMessage(event, messageInput);
@@ -149,7 +146,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     [sendMessage, resetEnhancer],
   );
 
-  // Enhanced enhancePrompt callback
+  // enhanced enhancePrompt callback
   const enhancePromptCallback = useCallback(() => {
     enhancePrompt(input, (input) => {
       setInput(input);
@@ -159,7 +156,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   const [messageRef, scrollRef] = useSnapScroll();
 
-  // Memoize the transformed messages to prevent unnecessary re-renders
+  // memoize the transformed messages to prevent unnecessary re-renders
   const transformedMessages = useMemo(() => {
     return messages.map((message, i) => {
       if (message.role === 'user') {
@@ -174,7 +171,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   }, [messages, parsedMessages]);
 
   useEffect(() => {
-    // Only parse messages if we have assistant messages to parse
+    // only parse messages if we have assistant messages to parse
     const hasAssistantMessages = messages.some((msg) => msg.role === 'assistant');
 
     if (hasAssistantMessages) {
@@ -182,7 +179,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
     }
   }, [messages, isLoading, parseMessages]);
 
-  // Memoize BaseChat props to prevent unnecessary re-renders
+  // memoize BaseChat props to prevent unnecessary re-renders
   const baseChatProps = useMemo(
     () => ({
       ref: animationScope,

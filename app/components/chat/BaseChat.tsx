@@ -97,7 +97,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         handleImageAttach(files);
       }
 
-      // Reset the input so the same file can be selected again
+      // reset the input so the same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }

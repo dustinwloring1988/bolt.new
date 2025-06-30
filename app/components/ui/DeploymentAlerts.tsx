@@ -22,21 +22,25 @@ const panelVariants = {
 
 function getAlertIcon(type: DeploymentAlert['type']) {
   switch (type) {
-    case 'success':
+    case 'success': {
       return 'i-ph:check-circle-duotone';
-    case 'error':
+    }
+    case 'error': {
       return 'i-ph:x-circle-duotone';
-    case 'warning':
+    }
+    case 'warning': {
       return 'i-ph:warning-circle-duotone';
+    }
     case 'info':
-    default:
+    default: {
       return 'i-ph:info-duotone';
+    }
   }
 }
 
 function getAlertColors(type: DeploymentAlert['type']) {
   switch (type) {
-    case 'success':
+    case 'success': {
       return {
         bg: 'bg-green-50',
         border: 'border-green-200',
@@ -44,7 +48,8 @@ function getAlertColors(type: DeploymentAlert['type']) {
         title: 'text-green-800',
         message: 'text-green-700',
       };
-    case 'error':
+    }
+    case 'error': {
       return {
         bg: 'bg-red-50',
         border: 'border-red-200',
@@ -52,7 +57,8 @@ function getAlertColors(type: DeploymentAlert['type']) {
         title: 'text-red-800',
         message: 'text-red-700',
       };
-    case 'warning':
+    }
+    case 'warning': {
       return {
         bg: 'bg-yellow-50',
         border: 'border-yellow-200',
@@ -60,8 +66,9 @@ function getAlertColors(type: DeploymentAlert['type']) {
         title: 'text-yellow-800',
         message: 'text-yellow-700',
       };
+    }
     case 'info':
-    default:
+    default: {
       return {
         bg: 'bg-blue-50',
         border: 'border-blue-200',
@@ -69,19 +76,24 @@ function getAlertColors(type: DeploymentAlert['type']) {
         title: 'text-blue-800',
         message: 'text-blue-700',
       };
+    }
   }
 }
 
 function getProviderIcon(provider: DeploymentAlert['provider']) {
   switch (provider) {
-    case 'netlify':
+    case 'netlify': {
       return 'i-ph:rocket-launch-duotone';
-    case 'vercel':
+    }
+    case 'vercel': {
       return 'i-ph:cloud-arrow-up-duotone';
-    case 'github-pages':
+    }
+    case 'github-pages': {
       return 'i-ph:git-branch-duotone';
-    default:
+    }
+    default: {
       return 'i-ph:globe-duotone';
+    }
   }
 }
 

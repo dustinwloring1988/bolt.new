@@ -1,7 +1,6 @@
 import { useStore } from '@nanostores/react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { PortDropdown } from './PortDropdown';
-import { deployToNetlify, deployToVercel } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
 import { detectExpoUrl, showQRCode } from '~/lib/stores/qrCode';
 import { workbenchStore } from '~/lib/stores/workbench';
