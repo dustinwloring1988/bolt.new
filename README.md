@@ -28,12 +28,13 @@ This version of Bolt introduces a suite of powerful features and improvements ov
 - **Enhanced UI** Add a glass efffect, editable chat titles.
 - **Enhanced Settings** Add settings for clearing all chats and exporting them.
 - **Deployment Alert System** Added a Deployment Alert System for when deploying to Vercel, Netlify, etc.
-
-### ✨ Features Coming Soon 
-
 - **Use of Context & Summaries**: Allows the agent to have awearness of the code and its context, while summarizing to save tokens.
 - **Local Import**: Allow the import of local projects.
+
+### ✨ Features Coming Soon 
+- **Vite 7**: Update Vite to version 7. This will require so refactoring of some code as well.
 - **Auto fix errors**: Auto detect and fix errors.
+- **Enhanced Prompts**: All prompts still need to be updated.
 
 ---
 

@@ -149,17 +149,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   'sticky bottom-0': chatStarted,
                 })}
               >
-                {/* Model Picker */}
-                <div className="flex justify-end mb-1">
-                  <select
-                    className="border border-bolt-elements-borderColor rounded px-2 py-1 text-sm bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary"
-                    value={selectedModel}
-                    onChange={e => setSelectedModel(e.target.value)}
-                  >
-                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                    <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Max)</option>
-                  </select>
-                </div>
                 {/* Image attachments preview */}
                 {attachedImages.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2 p-2 bg-bolt-elements-background-depth-2 rounded-lg border border-bolt-elements-borderColor">
@@ -284,11 +273,21 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         </IconButton>
                       )}
                     </div>
-                    {input.length > 3 ? (
-                      <div className="text-xs text-bolt-elements-textTertiary">
-                        Use <kbd className="kdb">Shift</kbd> + <kbd className="kdb">Return</kbd> for a new line
-                      </div>
-                    ) : null}
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="border border-bolt-elements-borderColor rounded px-2 py-1 text-sm bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary"
+                        value={selectedModel}
+                        onChange={e => setSelectedModel(e.target.value)}
+                      >
+                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                        <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Max)</option>
+                      </select>
+                      {input.length > 3 ? (
+                        <div className="text-xs text-bolt-elements-textTertiary">
+                          Use <kbd className="kdb">Shift</kbd> + <kbd className="kdb">Return</kbd> for a new line
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 <div className="bg-bolt-elements-background-depth-1 pb-6">{/* Ghost Element */}</div>
