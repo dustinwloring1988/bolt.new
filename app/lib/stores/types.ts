@@ -89,7 +89,7 @@ export interface StoreActionResult<T = any> {
  */
 export type StoreActionHandler<T = any, R = any> = (
   data: T,
-  context: StoreActionContext
+  context: StoreActionContext,
 ) => StoreActionResult<R> | Promise<StoreActionResult<R>>;
 
 /**
@@ -97,19 +97,13 @@ export type StoreActionHandler<T = any, R = any> = (
  */
 export type StoreMiddleware<T = any> = (
   action: StoreActionHandler<T>,
-  context: StoreActionContext
+  context: StoreActionContext,
 ) => StoreActionHandler<T>;
 
 /**
  * Store event types
  */
-export type StoreEventType = 
-  | 'init'
-  | 'reset'
-  | 'update'
-  | 'persist'
-  | 'restore'
-  | 'error';
+export type StoreEventType = 'init' | 'reset' | 'update' | 'persist' | 'restore' | 'error';
 
 /**
  * Store event
@@ -191,4 +185,4 @@ export interface StorePerformanceMetrics {
   lastUpdateTime: number;
   averageUpdateTime: number;
   memoryUsage?: number;
-} 
+}

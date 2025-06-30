@@ -1,5 +1,5 @@
-import { createScopedLogger } from '~/utils/logger';
 import type { StoreRegistry as IStoreRegistry, StoreState } from './types';
+import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('StoreRegistry');
 
@@ -46,13 +46,14 @@ export class StoreRegistry implements IStoreRegistry {
    */
   get<T extends StoreState>(name: string): T | undefined {
     const metadata = this.stores.get(name);
-    
+
     if (metadata) {
       metadata.lastAccessed = new Date();
       return metadata.instance as T;
     }
 
     logger.debug(`Store '${name}' not found`);
+
     return undefined;
   }
 
@@ -61,7 +62,7 @@ export class StoreRegistry implements IStoreRegistry {
    */
   unregister(name: string): boolean {
     const metadata = this.stores.get(name);
-    
+
     if (metadata) {
       // Call destroy method if it exists
       if (typeof metadata.instance.destroy === 'function') {
@@ -74,8 +75,9 @@ export class StoreRegistry implements IStoreRegistry {
 
       this.stores.delete(name);
       this.emit('unregister', { name });
-      
+
       logger.debug(`Store '${name}' unregistered`);
+
       return true;
     }
 
@@ -94,11 +96,11 @@ export class StoreRegistry implements IStoreRegistry {
    */
   getAll(): Record<string, any> {
     const result: Record<string, any> = {};
-    
+
     for (const [name, metadata] of this.stores) {
       result[name] = metadata.instance;
     }
-    
+
     return result;
   }
 
@@ -107,9 +109,10 @@ export class StoreRegistry implements IStoreRegistry {
    */
   reset(): void {
     const storeNames = this.list();
-    
+
     for (const name of storeNames) {
       const store = this.get(name);
+
       if (store && typeof store.reset === 'function') {
         try {
           store.reset();
@@ -128,14 +131,14 @@ export class StoreRegistry implements IStoreRegistry {
    */
   destroy(): void {
     const storeNames = this.list();
-    
+
     for (const name of storeNames) {
       this.unregister(name);
     }
 
     this.stores.clear();
     this.eventListeners.clear();
-    
+
     logger.debug('Store registry destroyed');
   }
 
@@ -173,8 +176,10 @@ export class StoreRegistry implements IStoreRegistry {
     // Return unsubscribe function
     return () => {
       const listeners = this.eventListeners.get(event);
+
       if (listeners) {
         listeners.delete(callback);
+
         if (listeners.size === 0) {
           this.eventListeners.delete(event);
         }
@@ -187,8 +192,9 @@ export class StoreRegistry implements IStoreRegistry {
    */
   private emit(event: string, data?: any): void {
     const listeners = this.eventListeners.get(event);
+
     if (listeners) {
-      listeners.forEach(callback => {
+      listeners.forEach((callback) => {
         try {
           callback();
         } catch (error) {
@@ -208,6 +214,7 @@ export class StoreRegistry implements IStoreRegistry {
     mostAccessedStore: string | null;
   } {
     const storeNames = this.list();
+
     let oldestStore: string | null = null;
     let mostAccessedStore: string | null = null;
     let oldestTime = Date.now();
@@ -243,4 +250,4 @@ export const getStore = <T extends StoreState>(name: string): T | undefined => s
 export const unregisterStore = (name: string) => storeRegistry.unregister(name);
 export const listStores = () => storeRegistry.list();
 export const resetAllStores = () => storeRegistry.reset();
-export const destroyRegistry = () => storeRegistry.destroy(); 
+export const destroyRegistry = () => storeRegistry.destroy();

@@ -3,10 +3,24 @@ import type { Message } from 'ai';
 import { atom } from 'nanostores';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { getMessages, getNextId, getUrlId, openDatabase, setMessages, getSnapshot, setSnapshot, saveCheckpoint, getCheckpoints, getCheckpoint, deleteCheckpoint, updateChatDescription, updateChatDescriptionByUrlId } from './db';
+import {
+  getMessages,
+  getNextId,
+  getUrlId,
+  openDatabase,
+  setMessages,
+  getSnapshot,
+  setSnapshot,
+  saveCheckpoint,
+  getCheckpoints,
+  getCheckpoint,
+  deleteCheckpoint,
+  updateChatDescription,
+  updateChatDescriptionByUrlId,
+} from './db';
 import type { Snapshot, Checkpoint } from './types';
-import { workbenchStore } from '~/lib/stores/workbench';
 import type { FileMap } from '~/lib/stores/files';
+import { workbenchStore } from '~/lib/stores/workbench';
 
 export interface ChatHistoryItem {
   id: string;
@@ -39,12 +53,12 @@ export function useChatHistory() {
     }
 
     try {
-      // Clear current workbench state
+      // clear current workbench state
       workbenchStore.resetAllFileModifications();
-      
-      // Set the files from the snapshot
+
+      // set the files from the snapshot
       workbenchStore.setDocuments(snapshot.files);
-      
+
       console.log('Successfully restored snapshot for chat:', id);
       toast.success('Files restored from checkpoint');
     } catch (error) {
@@ -65,21 +79,18 @@ export function useChatHistory() {
     }
 
     if (mixedId) {
-      Promise.all([
-        getMessages(db, mixedId),
-        getSnapshot(db, mixedId),
-      ])
+      Promise.all([getMessages(db, mixedId), getSnapshot(db, mixedId)])
         .then(async ([storedMessages, snapshot]) => {
           if (storedMessages && storedMessages.messages.length > 0) {
             const validSnapshot = snapshot || { chatIndex: '', files: {} };
-            
+
             setInitialMessages(storedMessages.messages);
             setArchivedMessages([]);
             setUrlId(storedMessages.urlId);
             description.set(storedMessages.description);
             chatId.set(storedMessages.id);
 
-            // If we have a snapshot, restore it
+            // if we have a snapshot, restore it
             if (validSnapshot.files) {
               await restoreSnapshot(storedMessages.id, validSnapshot);
             }
@@ -126,7 +137,7 @@ export function useChatHistory() {
   const createCheckpoint = useCallback(
     async (name: string, description?: string, currentMessages?: any[], isAutoSave = false) => {
       const id = chatId.get();
-      
+
       if (!id || !db) {
         toast.error('Cannot create checkpoint: No active chat.');
         return;
@@ -134,9 +145,10 @@ export function useChatHistory() {
 
       const files = workbenchStore.files.get();
       const currentSnapshot = await getSnapshot(db, id);
-      
-      // Get current chat messages if not provided
+
+      // get current chat messages if not provided
       let messages = currentMessages;
+
       if (!messages) {
         try {
           const chatHistory = await getMessages(db, id);
@@ -146,7 +158,7 @@ export function useChatHistory() {
           messages = [];
         }
       }
-      
+
       const checkpoint: Checkpoint = {
         id: `${id}-${Date.now()}`,
         name,
@@ -163,6 +175,7 @@ export function useChatHistory() {
       try {
         await saveCheckpoint(db, checkpoint);
         toast.success(`Checkpoint "${name}" created successfully.`);
+
         return checkpoint;
       } catch (error) {
         console.error('Failed to create checkpoint:', error);
@@ -172,24 +185,22 @@ export function useChatHistory() {
     [db],
   );
 
-  const loadCheckpoints = useCallback(
-    async () => {
-      const id = chatId.get();
-      
-      if (!id || !db) {
-        return [];
-      }
+  const loadCheckpoints = useCallback(async () => {
+    const id = chatId.get();
 
-      try {
-        return await getCheckpoints(db, id);
-      } catch (error) {
-        console.error('Failed to load checkpoints:', error);
-        toast.error('Failed to load checkpoints.');
-        return [];
-      }
-    },
-    [db],
-  );
+    if (!id || !db) {
+      return [];
+    }
+
+    try {
+      return await getCheckpoints(db, id);
+    } catch (error) {
+      console.error('Failed to load checkpoints:', error);
+      toast.error('Failed to load checkpoints.');
+
+      return [];
+    }
+  }, [db]);
 
   const restoreCheckpoint = useCallback(
     async (checkpointId: string) => {
@@ -200,31 +211,32 @@ export function useChatHistory() {
 
       try {
         const checkpoint = await getCheckpoint(db, checkpointId);
-        
+
         if (!checkpoint) {
           toast.error('Checkpoint not found.');
           return;
         }
 
-        // Create a new chat session with the checkpoint data
+        // create a new chat session with the checkpoint data
         const newChatId = await getNextId(db);
         const newUrlId = await getUrlId(db, `checkpoint-${checkpoint.name.toLowerCase().replace(/\s+/g, '-')}`);
-        
-        // Save the checkpoint messages as a new chat
+
+        // save the checkpoint messages as a new chat
         await setMessages(db, newChatId, checkpoint.messages, newUrlId, `Restored: ${checkpoint.name}`);
-        
-        // Save the checkpoint files as a snapshot for the new chat
+
+        // save the checkpoint files as a snapshot for the new chat
         await setSnapshot(db, newChatId, {
           chatIndex: checkpoint.chatIndex,
           files: checkpoint.files,
         });
-        
-        // Navigate to the new chat
+
+        // navigate to the new chat
         const url = new URL(window.location.href);
         url.pathname = `/chat/${newUrlId}`;
         window.location.href = url.toString();
-        
+
         toast.success(`Restored to checkpoint "${checkpoint.name}" in new chat`);
+
         return checkpoint;
       } catch (error) {
         console.error('Failed to restore checkpoint:', error);
@@ -259,7 +271,7 @@ export function useChatHistory() {
         return false;
       }
 
-      // Validate description
+      // validate description
       if (!newDescription.trim()) {
         toast.error('Description cannot be empty.');
         return false;
@@ -279,26 +291,27 @@ export function useChatHistory() {
       }
 
       try {
-        // Update the database
+        // update the database
         if (currentUrlId) {
           await updateChatDescriptionByUrlId(db, currentUrlId, newDescription.trim());
         } else if (currentChatId) {
           await updateChatDescription(db, currentChatId, newDescription.trim());
         }
 
-        // Update the local state
+        // update the local state
         description.set(newDescription.trim());
         toast.success('Chat title updated successfully.');
+
         return true;
       } catch (error) {
         console.error('Failed to update description:', error);
         toast.error('Failed to update chat title.');
+
         return false;
       }
     },
     [db, urlId],
   );
-
 
   return {
     ready: !mixedId || ready,
@@ -344,6 +357,7 @@ export function useChatHistory() {
       if (!finalChatId) {
         console.error('Cannot save messages, chat ID is not set.');
         toast.error('Failed to save chat messages: Chat ID missing.');
+
         return;
       }
 

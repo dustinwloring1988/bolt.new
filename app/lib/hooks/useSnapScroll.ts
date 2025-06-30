@@ -11,6 +11,7 @@ export function useSnapScroll() {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
+
     if (node) {
       const observer = new ResizeObserver(() => {
         if (autoScrollRef.current && scrollNodeRef.current) {

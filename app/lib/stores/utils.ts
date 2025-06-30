@@ -1,5 +1,11 @@
+import type {
+  StoreValidationSchema,
+  StoreValidationResult,
+  StoreMigration,
+  StoreMigrationConfig,
+  StorePerformanceMetrics,
+} from './types';
 import { createScopedLogger } from '~/utils/logger';
-import type { StoreValidationSchema, StoreValidationResult, StoreMigration, StoreMigrationConfig, StorePerformanceMetrics } from './types';
 
 const logger = createScopedLogger('StoreUtils');
 
@@ -8,7 +14,7 @@ const logger = createScopedLogger('StoreUtils');
  */
 export function validateStoreData<T extends Record<string, any>>(
   data: T,
-  schema: StoreValidationSchema
+  schema: StoreValidationSchema,
 ): StoreValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -16,24 +22,25 @@ export function validateStoreData<T extends Record<string, any>>(
   for (const [key, fieldSchema] of Object.entries(schema)) {
     const value = data[key];
 
-    // Check if required field is missing
+    // check if required field is missing
     if (fieldSchema.required && value === undefined) {
       errors.push(`Required field '${key}' is missing`);
       continue;
     }
 
-    // Skip validation if value is undefined and not required
+    // skip validation if value is undefined and not required
     if (value === undefined) {
       continue;
     }
 
-    // Check type
+    // check type
     const actualType = Array.isArray(value) ? 'array' : typeof value;
+
     if (actualType !== fieldSchema.type) {
       errors.push(`Field '${key}' should be of type '${fieldSchema.type}', got '${actualType}'`);
     }
 
-    // Run custom validator if provided
+    // run custom validator if provided
     if (fieldSchema.validator && !fieldSchema.validator(value)) {
       errors.push(`Field '${key}' failed custom validation`);
     }
@@ -52,11 +59,11 @@ export function validateStoreData<T extends Record<string, any>>(
 export function migrateStoreData<T>(
   data: any,
   migration: StoreMigration<T>,
-  version: string
+  version: string,
 ): { data: T; version: string } {
   try {
     const migratedData = migration(data);
-    
+
     logger.debug(`Store data migrated successfully`, {
       fromVersion: 'unknown',
       toVersion: version,
@@ -79,9 +86,7 @@ export function migrateStoreData<T>(
 /**
  * Create a migration chain for multiple versions
  */
-export function createMigrationChain<T>(
-  migrations: StoreMigrationConfig[]
-): StoreMigration<T> {
+export function createMigrationChain<T>(migrations: StoreMigrationConfig[]): StoreMigration<T> {
   return (data: any) => {
     let currentData = data;
 
@@ -108,10 +113,11 @@ export function cloneStoreData<T>(data: T): T {
   }
 
   if (Array.isArray(data)) {
-    return data.map(item => cloneStoreData(item)) as T;
+    return data.map((item) => cloneStoreData(item)) as T;
   }
 
   const cloned: any = {};
+
   for (const key in data) {
     if (data.hasOwnProperty(key)) {
       cloned[key] = cloneStoreData(data[key]);
@@ -126,13 +132,13 @@ export function cloneStoreData<T>(data: T): T {
  */
 export function diffStoreStates<T extends Record<string, any>>(
   oldState: T,
-  newState: T
+  newState: T,
 ): { added: string[]; removed: string[]; changed: string[] } {
   const added: string[] = [];
   const removed: string[] = [];
   const changed: string[] = [];
 
-  // Find added and changed keys
+  // find added and changed keys
   for (const key in newState) {
     if (!(key in oldState)) {
       added.push(key);
@@ -141,7 +147,7 @@ export function diffStoreStates<T extends Record<string, any>>(
     }
   }
 
-  // Find removed keys
+  // find removed keys
   for (const key in oldState) {
     if (!(key in newState)) {
       removed.push(key);
@@ -160,11 +166,11 @@ export function createStorePerformanceMonitor() {
   return {
     startTimer(storeName: string): () => void {
       const startTime = Date.now();
-      
+
       return () => {
         const endTime = Date.now();
         const duration = endTime - startTime;
-        
+
         const existing = metrics.get(storeName) || {
           initTime: 0,
           updateCount: 0,
@@ -176,7 +182,8 @@ export function createStorePerformanceMonitor() {
           ...existing,
           updateCount: existing.updateCount + 1,
           lastUpdateTime: endTime,
-          averageUpdateTime: (existing.averageUpdateTime * existing.updateCount + duration) / (existing.updateCount + 1),
+          averageUpdateTime:
+            (existing.averageUpdateTime * existing.updateCount + duration) / (existing.updateCount + 1),
         };
 
         metrics.set(storeName, newMetrics);
@@ -185,12 +192,14 @@ export function createStorePerformanceMonitor() {
 
     getMetrics(storeName?: string): StorePerformanceMetrics | Record<string, StorePerformanceMetrics> {
       if (storeName) {
-        return metrics.get(storeName) || {
-          initTime: 0,
-          updateCount: 0,
-          lastUpdateTime: 0,
-          averageUpdateTime: 0,
-        };
+        return (
+          metrics.get(storeName) || {
+            initTime: 0,
+            updateCount: 0,
+            lastUpdateTime: 0,
+            averageUpdateTime: 0,
+          }
+        );
       }
 
       return Object.fromEntries(metrics);
@@ -208,7 +217,7 @@ export function createStorePerformanceMonitor() {
 export function createStoreDebugger<T extends Record<string, any>>(
   storeName: string,
   getState: () => T,
-  setState: (state: T) => void
+  setState: (state: T) => void,
 ) {
   const history: Array<{ timestamp: number; state: T; action?: string }> = [];
   const maxHistory = 100;
@@ -234,7 +243,7 @@ export function createStoreDebugger<T extends Record<string, any>>(
     },
 
     getHistory(): Array<{ timestamp: number; state: T; action?: string }> {
-      return history.map(item => ({
+      return history.map((item) => ({
         ...item,
         state: cloneStoreData(item.state),
       }));
@@ -248,7 +257,7 @@ export function createStoreDebugger<T extends Record<string, any>>(
 
       const targetState = history[index].state;
       setState(cloneStoreData(targetState));
-      
+
       logger.debug(`Store time travel executed`, {
         store: storeName,
         targetIndex: index,
@@ -267,10 +276,7 @@ export function createStoreDebugger<T extends Record<string, any>>(
 /**
  * Create a store persistence helper
  */
-export function createStorePersistence<T>(
-  storeName: string,
-  storageKey?: string
-) {
+export function createStorePersistence<T>(storeName: string, storageKey?: string) {
   const key = storageKey || `store_${storeName}`;
 
   return {
@@ -278,7 +284,7 @@ export function createStorePersistence<T>(
       try {
         const serialized = JSON.stringify(data);
         localStorage.setItem(key, serialized);
-        
+
         logger.debug(`Store data persisted`, {
           store: storeName,
           key,
@@ -296,12 +302,13 @@ export function createStorePersistence<T>(
     load(): T | null {
       try {
         const serialized = localStorage.getItem(key);
+
         if (!serialized) {
           return null;
         }
 
         const data = JSON.parse(serialized);
-        
+
         logger.debug(`Store data loaded`, {
           store: storeName,
           key,
@@ -322,7 +329,7 @@ export function createStorePersistence<T>(
     clear(): void {
       try {
         localStorage.removeItem(key);
-        
+
         logger.debug(`Store data cleared`, {
           store: storeName,
           key,
@@ -348,16 +355,17 @@ export function createStorePersistence<T>(
 export function createStoreSubscription<T>(
   store: { subscribe: (callback: (value: T) => void) => () => void },
   callback: (value: T) => void,
-  options: { immediate?: boolean; once?: boolean } = {}
+  options: { immediate?: boolean; once?: boolean } = {},
 ) {
   let unsubscribe: (() => void) | undefined;
   let hasRun = false;
 
   const wrappedCallback = (value: T) => {
     callback(value);
-    
+
     if (options.once) {
       hasRun = true;
+
       if (unsubscribe) {
         unsubscribe();
         unsubscribe = undefined;
@@ -368,10 +376,13 @@ export function createStoreSubscription<T>(
   unsubscribe = store.subscribe(wrappedCallback);
 
   if (options.immediate) {
-    // Note: This assumes the store has a get() method
-    // You might need to adjust this based on your store implementation
+    /*
+     * Note: This assumes the store has a get() method
+     * You might need to adjust this based on your store implementation
+     */
     try {
       const currentValue = (store as any).get();
+
       if (currentValue !== undefined) {
         wrappedCallback(currentValue);
       }
@@ -389,4 +400,4 @@ export function createStoreSubscription<T>(
     },
     hasRun,
   };
-} 
+}

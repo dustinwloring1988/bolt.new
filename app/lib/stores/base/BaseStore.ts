@@ -36,8 +36,10 @@ export abstract class BaseStore {
    * Get a value from localStorage with type safety
    */
   protected getFromStorage<T>(key: string, defaultValue: T): T {
-    if (typeof window === 'undefined') return defaultValue;
-    
+    if (typeof window === 'undefined') {
+      return defaultValue;
+    }
+
     try {
       const stored = localStorage.getItem(key);
       return stored ? JSON.parse(stored) : defaultValue;
@@ -51,8 +53,10 @@ export abstract class BaseStore {
    * Save a value to localStorage with error handling
    */
   protected saveToStorage<T>(key: string, value: T): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
@@ -64,28 +68,28 @@ export abstract class BaseStore {
    * Remove a value from localStorage
    */
   protected removeFromStorage(key: string): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     localStorage.removeItem(key);
   }
 
   /**
    * Create a computed atom that depends on other atoms
    */
-  protected createComputed<T>(
-    dependencies: ReadableAtom<any>[],
-    computeFn: (...values: any[]) => T
-  ): ReadableAtom<T> {
-    // This is a simplified version - in practice you'd use nanostores' computed
+  protected createComputed<T>(dependencies: ReadableAtom<any>[], computeFn: (...values: any[]) => T): ReadableAtom<T> {
+    // this is a simplified version - in practice you'd use nanostores' computed
     const result = atom(computeFn());
-    
-    // Subscribe to all dependencies
-    dependencies.forEach(dep => {
+
+    // subscribe to all dependencies
+    dependencies.forEach((dep) => {
       dep.subscribe(() => {
-        const values = dependencies.map(d => d.get());
+        const values = dependencies.map((d) => d.get());
         result.set(computeFn(...values));
       });
     });
-    
+
     return result;
   }
 
@@ -98,4 +102,4 @@ export abstract class BaseStore {
    * Initialize the store
    */
   abstract init(): void | Promise<void>;
-} 
+}

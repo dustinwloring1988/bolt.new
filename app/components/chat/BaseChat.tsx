@@ -78,28 +78,30 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     },
     ref,
   ) => {
-  const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
-  const [selectedModel, setSelectedModel] = useState(model || 'claude-3-5-sonnet-20241022');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+    const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
+    const [selectedModel, setSelectedModel] = useState(model || 'claude-3-5-sonnet-20241022');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
-    onModelChange?.(selectedModel);
-  }, [selectedModel]);
+    React.useEffect(() => {
+      onModelChange?.(selectedModel);
+    }, [selectedModel]);
 
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
+    const handleFileSelect = () => {
+      fileInputRef.current?.click();
+    };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && handleImageAttach) {
-      handleImageAttach(files);
-    }
-    // Reset the input so the same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+
+      if (files && handleImageAttach) {
+        handleImageAttach(files);
+      }
+
+      // Reset the input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
 
     return (
       <div
@@ -119,7 +121,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   Bolt is <i className="italic">free</i> always
                 </h1>
                 <p className="mb-4 text-center text-bolt-elements-textSecondary">
-                  Build apps and sites in chat. Start now. <a href="#" className="underline">Learn more</a>
+                  Build apps and sites in chat. Start now.{' '}
+                  <a href="#" className="underline">
+                    Learn more
+                  </a>
                 </p>
               </div>
             )}
@@ -277,7 +282,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       <select
                         className="border border-bolt-elements-borderColor rounded px-2 py-1 text-sm bg-bolt-elements-background-depth-2 text-bolt-elements-textPrimary"
                         value={selectedModel}
-                        onChange={e => setSelectedModel(e.target.value)}
+                        onChange={(e) => setSelectedModel(e.target.value)}
                       >
                         <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
                         <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Max)</option>

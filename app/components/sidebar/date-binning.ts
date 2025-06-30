@@ -39,7 +39,7 @@ function dateCategory(date: Date) {
   }
 
   if (isThisWeek(date)) {
-    // e.g., "Monday"
+    // e.g., "monday"
     return format(date, 'eeee');
   }
 
@@ -50,10 +50,10 @@ function dateCategory(date: Date) {
   }
 
   if (isThisYear(date)) {
-    // e.g., "July"
+    // e.g., "july"
     return format(date, 'MMMM');
   }
 
-  // e.g., "July 2023"
+  // e.g., "july 2023"
   return format(date, 'MMMM yyyy');
 }

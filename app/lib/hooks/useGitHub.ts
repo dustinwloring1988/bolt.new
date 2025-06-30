@@ -1,11 +1,16 @@
 import { useCallback, useState } from 'react';
-import { GitHubService, type GitHubRepo, type GitHubBranch, type GitHubCreateRepoOptions } from '~/lib/services/githubService';
+import {
+  GitHubService,
+  type GitHubRepo,
+  type GitHubBranch,
+  type GitHubCreateRepoOptions,
+} from '~/lib/services/githubService';
 import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('useGitHub');
 
 export interface UseGitHubReturn {
-  // State
+  // state
   dialogOpen: boolean;
   dialogType: 'clone' | 'push' | 'create';
   repoUrl: string;
@@ -19,8 +24,8 @@ export interface UseGitHubReturn {
   loading: boolean;
   error: string;
   tokenValid: boolean | null;
-  
-  // Actions
+
+  // actions
   openDialog: (type: 'clone' | 'push' | 'create') => void;
   closeDialog: () => void;
   setRepoUrl: (url: string) => void;
@@ -29,8 +34,8 @@ export interface UseGitHubReturn {
   setRepoDescription: (description: string) => void;
   setPrivateRepo: (private_: boolean) => void;
   setSelectedBranch: (branch: string) => void;
-  
-  // GitHub operations
+
+  // github operations
   validateToken: () => Promise<void>;
   loadUserRepos: () => Promise<void>;
   loadBranches: (repoUrl: string) => Promise<void>;
@@ -68,8 +73,10 @@ export function useGitHub(): UseGitHubReturn {
   const validateToken = useCallback(async () => {
     try {
       setLoading(true);
+
       const isValid = await GitHubService.validateToken();
       setTokenValid(isValid);
+
       if (!isValid) {
         setError('Invalid GitHub token. Please check your settings.');
       }
@@ -85,6 +92,7 @@ export function useGitHub(): UseGitHubReturn {
   const loadUserRepos = useCallback(async () => {
     try {
       setLoading(true);
+
       const repos = await GitHubService.getUserRepos();
       setUserRepos(repos);
     } catch (error) {
@@ -98,6 +106,7 @@ export function useGitHub(): UseGitHubReturn {
   const loadBranches = useCallback(async (repoUrl: string) => {
     try {
       setLoading(true);
+
       const repo = GitHubService.parseRepo(repoUrl);
       const branchList = await GitHubService.getBranches(repo);
       setBranches(branchList);
@@ -114,14 +123,16 @@ export function useGitHub(): UseGitHubReturn {
     try {
       setLoading(true);
       setError('');
-      
+
       const repo = GitHubService.parseRepo(repoUrl);
       const files = await GitHubService.fetchRepoFiles(repo);
-      
-      // Here you would typically add the files to the workbench
-      // This depends on your workbench implementation
+
+      /**
+       * Here you would typically add the files to the workbench
+       * This depends on your workbench implementation
+       */
       logger.info('Repository cloned successfully', { repo, fileCount: Object.keys(files).length });
-      
+
       closeDialog();
     } catch (error) {
       logger.error('Failed to clone repository:', error);
@@ -135,14 +146,14 @@ export function useGitHub(): UseGitHubReturn {
     try {
       setLoading(true);
       setError('');
-      
+
       const repo = GitHubService.parseRepo(repoUrl);
-      
-      // Get files from workbench (this would need to be implemented based on your workbench)
-      const files: { [path: string]: string } = {}; // This should come from workbench
-      
+
+      // get files from workbench (this would need to be implemented based on your workbench)
+      const files: { [path: string]: string } = {}; // this should come from workbench
+
       await GitHubService.pushFiles(repo, files, commitMessage);
-      
+
       closeDialog();
     } catch (error) {
       logger.error('Failed to push to repository:', error);
@@ -156,16 +167,16 @@ export function useGitHub(): UseGitHubReturn {
     try {
       setLoading(true);
       setError('');
-      
+
       const options: GitHubCreateRepoOptions = {
         name: repoName,
         description: repoDescription,
         private: privateRepo,
         auto_init: true,
       };
-      
+
       await GitHubService.createRepo(options);
-      
+
       closeDialog();
     } catch (error) {
       logger.error('Failed to create repository:', error);
@@ -176,7 +187,7 @@ export function useGitHub(): UseGitHubReturn {
   }, [repoName, repoDescription, privateRepo, closeDialog]);
 
   return {
-    // State
+    // state
     dialogOpen,
     dialogType,
     repoUrl,
@@ -190,8 +201,8 @@ export function useGitHub(): UseGitHubReturn {
     loading,
     error,
     tokenValid,
-    
-    // Actions
+
+    // actions
     openDialog,
     closeDialog,
     setRepoUrl,
@@ -200,8 +211,8 @@ export function useGitHub(): UseGitHubReturn {
     setRepoDescription,
     setPrivateRepo,
     setSelectedBranch,
-    
-    // GitHub operations
+
+    // github operations
     validateToken,
     loadUserRepos,
     loadBranches,
@@ -209,4 +220,4 @@ export function useGitHub(): UseGitHubReturn {
     pushToRepository,
     createRepository,
   };
-} 
+}

@@ -1,8 +1,8 @@
-import { 
-  updateDeploymentAlert, 
-  createDeploymentSuccessAlert, 
-  createDeploymentErrorAlert, 
-  type DeploymentAlert 
+import {
+  updateDeploymentAlert,
+  createDeploymentSuccessAlert,
+  createDeploymentErrorAlert,
+  type DeploymentAlert,
 } from '~/lib/stores/deploymentAlerts';
 
 export interface DeploymentStatusResponse {
@@ -21,16 +21,16 @@ export class DeploymentStatusService {
    * Start polling for deployment status
    */
   startPolling(
-    alertId: string, 
-    provider: DeploymentAlert['provider'], 
+    alertId: string,
+    provider: DeploymentAlert['provider'],
     deploymentId: string,
-    checkStatusFn: (deploymentId: string) => Promise<DeploymentStatusResponse>
+    checkStatusFn: (deploymentId: string) => Promise<DeploymentStatusResponse>,
   ) {
     // Clear any existing polling for this alert
     this.stopPolling(alertId);
 
     const startTime = Date.now();
-    
+
     const pollStatus = async () => {
       try {
         // Check if we've exceeded max polling duration
@@ -40,16 +40,18 @@ export class DeploymentStatusService {
             type: 'warning',
             title: 'Deployment Status Unknown',
             message: `Deployment monitoring timed out. Please check ${provider} dashboard for status.`,
-            status: 'completed'
+            status: 'completed',
           });
+
           return;
         }
 
         const status = await checkStatusFn(deploymentId);
-        
+
         switch (status.status) {
           case 'ready':
             this.stopPolling(alertId);
+
             if (status.url) {
               createDeploymentSuccessAlert(provider, status.url, alertId);
             } else {
@@ -57,23 +59,24 @@ export class DeploymentStatusService {
                 type: 'success',
                 title: 'Deployment Completed',
                 message: `Deployment to ${provider} completed successfully`,
-                status: 'completed'
+                status: 'completed',
               });
             }
+
             break;
-            
+
           case 'error':
             this.stopPolling(alertId);
             createDeploymentErrorAlert(provider, status.error || 'Deployment failed', alertId);
             break;
-            
+
           case 'building':
           case 'deploying':
           case 'queued':
             // Update the alert with current status but continue polling
             updateDeploymentAlert(alertId, {
               message: `Deployment ${status.status}...`,
-              status: 'deploying'
+              status: 'deploying',
             });
             break;
         }
@@ -96,6 +99,7 @@ export class DeploymentStatusService {
    */
   stopPolling(alertId: string) {
     const interval = this.pollingIntervals.get(alertId);
+
     if (interval) {
       clearInterval(interval);
       this.pollingIntervals.delete(alertId);
@@ -125,7 +129,7 @@ export class NetlifyStatusChecker {
   async checkStatus(deploymentId: string): Promise<DeploymentStatusResponse> {
     const response = await fetch(`https://api.netlify.com/api/v1/deployments/${deploymentId}`, {
       headers: {
-        'Authorization': `Bearer ${this.token}`,
+        Authorization: `Bearer ${this.token}`,
       },
     });
 
@@ -134,22 +138,23 @@ export class NetlifyStatusChecker {
     }
 
     const data = await response.json();
-    
+
     // Map Netlify status to our standard status
     const statusMap: Record<string, DeploymentStatusResponse['status']> = {
-      'new': 'queued',
-      'building': 'building',
-      'deploying': 'deploying',
-      'ready': 'ready',
-      'error': 'error',
-      'failed': 'error',
+      new: 'queued',
+      building: 'building',
+      deploying: 'deploying',
+      ready: 'ready',
+      error: 'error',
+      failed: 'error',
     };
 
     if (typeof data === 'object' && data !== null && 'state' in data) {
       return {
         status: statusMap[(data as any).state] || 'deploying',
         url: (data as any).state === 'ready' ? (data as any).ssl_url || (data as any).deploy_ssl_url : undefined,
-        error: (data as any).state === 'error' || (data as any).state === 'failed' ? (data as any).error_message : undefined,
+        error:
+          (data as any).state === 'error' || (data as any).state === 'failed' ? (data as any).error_message : undefined,
         readyAt: (data as any).published_at,
       };
     } else {
@@ -164,7 +169,7 @@ export class VercelStatusChecker {
   async checkStatus(deploymentId: string): Promise<DeploymentStatusResponse> {
     const response = await fetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
       headers: {
-        'Authorization': `Bearer ${this.token}`,
+        Authorization: `Bearer ${this.token}`,
       },
     });
 
@@ -173,15 +178,15 @@ export class VercelStatusChecker {
     }
 
     const data = await response.json();
-    
+
     // Map Vercel status to our standard status
     const statusMap: Record<string, DeploymentStatusResponse['status']> = {
-      'BUILDING': 'building',
-      'DEPLOYING': 'deploying',
-      'READY': 'ready',
-      'ERROR': 'error',
-      'CANCELED': 'error',
-      'QUEUED': 'queued',
+      BUILDING: 'building',
+      DEPLOYING: 'deploying',
+      READY: 'ready',
+      ERROR: 'error',
+      CANCELED: 'error',
+      QUEUED: 'queued',
     };
 
     if (typeof data === 'object' && data !== null && 'readyState' in data) {

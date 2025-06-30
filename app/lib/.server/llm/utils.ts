@@ -1,7 +1,7 @@
 import { type Message } from 'ai';
+import ignore from 'ignore';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from './constants';
 import { IGNORE_PATTERNS, type FileMap } from './context-constants';
-import ignore from 'ignore';
 
 // Regex patterns for extracting model and provider from messages
 const MODEL_REGEX = /^[\s\S]*?(@model:(\w+))/i;
@@ -66,6 +66,7 @@ export function simplifyBoltActions(input: string): string {
 
 export function createFilesContext(files: FileMap, useRelativePath?: boolean) {
   const ig = ignore().add(IGNORE_PATTERNS);
+
   let filePaths = Object.keys(files);
   filePaths = filePaths.filter((x) => {
     const relPath = x.replace('/home/project/', '');

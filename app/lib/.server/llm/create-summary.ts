@@ -1,9 +1,9 @@
 import { generateText, type CoreTool, type GenerateTextResult, type Message } from 'ai';
-import { getSystemPrompt } from './prompts';
-import { getAnthropicModel } from './model';
 import { getAPIKey } from './api-key';
-import { extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from './constants';
+import { getAnthropicModel } from './model';
+import { getSystemPrompt } from './prompts';
+import { extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
 
 export async function createSummary(props: {
   messages: Message[];
@@ -11,9 +11,10 @@ export async function createSummary(props: {
   onFinish?: (resp: GenerateTextResult<Record<string, CoreTool<any, any>>, never>) => void;
 }) {
   const { messages, env: serverEnv, onFinish } = props;
+
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
-  
+
   const processedMessages = messages.map((message) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
@@ -35,9 +36,11 @@ export async function createSummary(props: {
   });
 
   const provider = PROVIDER_LIST.find((p) => p.name === currentProvider) || DEFAULT_PROVIDER;
-  
+
   let slicedMessages = processedMessages;
+
   const { summary } = extractCurrentContext(processedMessages);
+
   let summaryText: string | undefined = undefined;
   let chatId: string | undefined = undefined;
 
@@ -145,7 +148,15 @@ ${slicedMessages
 
 Please provide a summary of the chat till now including the hitorical summary of the chat.
 `,
-    model: getAnthropicModel(getAPIKey(serverEnv ?? (() => { throw new Error('Env is required'); })()), currentModel),
+    model: getAnthropicModel(
+      getAPIKey(
+        serverEnv ??
+          (() => {
+            throw new Error('Env is required');
+          })(),
+      ),
+      currentModel,
+    ),
   });
 
   const response = resp.text;

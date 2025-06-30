@@ -219,14 +219,21 @@ export class WorkbenchStore {
   }
 
   abortAllActions() {
-    // Abort all running or pending actions in all artifacts
+    // abort all running or pending actions in all artifacts
     const artifacts = this.artifacts.get();
+
     for (const artifactId of Object.keys(artifacts)) {
       const artifact = artifacts[artifactId];
-      if (!artifact) continue;
+
+      if (!artifact) {
+        continue;
+      }
+
       const actions = artifact.runner.actions.get();
+
       for (const actionId of Object.keys(actions)) {
         const action = actions[actionId];
+
         if (action && (action.status === 'pending' || action.status === 'running')) {
           action.abort();
         }

@@ -15,7 +15,7 @@ export interface UseSupabaseReturn {
   status: 'connected' | 'not_connected' | 'error';
   error: string;
   loading: boolean;
-  
+
   // Actions
   openDialog: () => void;
   closeDialog: () => void;
@@ -23,7 +23,7 @@ export interface UseSupabaseReturn {
   setKey: (key: string) => void;
   setToken: (token: string) => void;
   setSelectedProject: (projectId: string) => void;
-  
+
   // Supabase operations
   checkConnectionStatus: () => Promise<void>;
   fetchProjects: () => Promise<void>;
@@ -57,11 +57,12 @@ export function useSupabase(): UseSupabaseReturn {
     try {
       setLoading(true);
       setError('');
-      
+
       const credentials: SupabaseCredentials = { url, key, token };
       const result = await SupabaseService.checkConnectionStatus(credentials);
-      
+
       setStatus(result.status);
+
       if (result.error) {
         setError(result.error);
       }
@@ -78,12 +79,12 @@ export function useSupabase(): UseSupabaseReturn {
     try {
       setLoading(true);
       setError('');
-      
+
       if (!token) {
         setError('No Supabase token provided');
         return;
       }
-      
+
       const projectList = await SupabaseService.fetchProjects(token);
       setProjects(projectList);
     } catch (error) {
@@ -94,60 +95,61 @@ export function useSupabase(): UseSupabaseReturn {
     }
   }, [token]);
 
-  const handleProjectSelect = useCallback(async (projectId: string) => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      if (!token) {
-        setError('No Supabase token provided');
-        return;
+  const handleProjectSelect = useCallback(
+    async (projectId: string) => {
+      try {
+        setLoading(true);
+        setError('');
+
+        if (!token) {
+          setError('No Supabase token provided');
+          return;
+        }
+
+        const keys = await SupabaseService.fetchProjectKeys(projectId, token);
+
+        // Update the URL and key with the selected project's credentials
+        const projectUrl = SupabaseService.getProjectUrl(projectId);
+        setUrl(projectUrl);
+        setKey(keys.anon); // Use the anon key for client-side operations
+
+        setSelectedProject(projectId);
+
+        // Save the updated credentials
+        const credentials: SupabaseCredentials = {
+          url: projectUrl,
+          key: keys.anon,
+          token,
+        };
+        SupabaseService.saveCredentials(credentials);
+
+        // Check connection status with new credentials
+        await checkConnectionStatus();
+      } catch (error) {
+        logger.error('Failed to select project:', error);
+        setError('Failed to select project');
+      } finally {
+        setLoading(false);
       }
-      
-      const keys = await SupabaseService.fetchProjectKeys(projectId, token);
-      
-      // Update the URL and key with the selected project's credentials
-      const projectUrl = SupabaseService.getProjectUrl(projectId);
-      setUrl(projectUrl);
-      setKey(keys.anon); // Use the anon key for client-side operations
-      
-      setSelectedProject(projectId);
-      
-      // Save the updated credentials
-      const credentials: SupabaseCredentials = {
-        url: projectUrl,
-        key: keys.anon,
-        token,
-      };
-      SupabaseService.saveCredentials(credentials);
-      
-      // Check connection status with new credentials
-      await checkConnectionStatus();
-      
-    } catch (error) {
-      logger.error('Failed to select project:', error);
-      setError('Failed to select project');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, checkConnectionStatus]);
+    },
+    [token, checkConnectionStatus],
+  );
 
   const saveCredentials = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const credentials: SupabaseCredentials = { url, key, token };
       SupabaseService.saveCredentials(credentials);
-      
+
       // Check connection status
       await checkConnectionStatus();
-      
+
       // If connected and token is provided, fetch projects
       if (status === 'connected' && token) {
         await fetchProjects();
       }
-      
     } catch (error) {
       logger.error('Failed to save credentials:', error);
       setError('Failed to save credentials');
@@ -178,7 +180,7 @@ export function useSupabase(): UseSupabaseReturn {
     status,
     error,
     loading,
-    
+
     // Actions
     openDialog,
     closeDialog,
@@ -186,7 +188,7 @@ export function useSupabase(): UseSupabaseReturn {
     setKey,
     setToken,
     setSelectedProject,
-    
+
     // Supabase operations
     checkConnectionStatus,
     fetchProjects,
@@ -194,4 +196,4 @@ export function useSupabase(): UseSupabaseReturn {
     saveCredentials,
     disconnect,
   };
-} 
+}

@@ -3,12 +3,12 @@ import { motion, type Variants } from 'framer-motion';
 import React, { memo, type ReactNode, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { IconButton } from './IconButton';
-import { classNames } from '~/utils/classNames';
-import { cubicEasingFn } from '~/utils/easings';
-import { downloadFile, formatDate } from '~/utils/download';
 import { db, exportAllChats, deleteAllChats } from '~/lib/persistence';
 import { chatStore } from '~/lib/stores/chat';
 import { settingsStore, type ServiceTokens } from '~/lib/stores/settings';
+import { classNames } from '~/utils/classNames';
+import { downloadFile, formatDate } from '~/utils/download';
+import { cubicEasingFn } from '~/utils/easings';
 
 export { Close as DialogClose, Root as DialogRoot } from '@radix-ui/react-dialog';
 
@@ -141,18 +141,16 @@ export const Dialog = memo(({ className, children, onBackdrop, onClose }: Dialog
   );
 });
 
-export function SettingsDialog({ open, onClose }: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [tokens, setTokens] = useState<ServiceTokens>({
     netlify: '',
     vercel: '',
     github: '',
   });
+
   const [chatManagementOpen, setChatManagementOpen] = useState(false);
 
-  // Load current settings when dialog opens
+  // load current settings when dialog opens
   useEffect(() => {
     if (open) {
       const currentTokens = settingsStore.getServiceTokens();
@@ -185,9 +183,9 @@ export function SettingsDialog({ open, onClose }: {
 
     try {
       await deleteAllChats(db);
-      // Clear current chat state
+      // clear current chat state
       chatStore.reset();
-      // Redirect to home page
+      // redirect to home page
       window.location.href = '/';
       toast.success('All chats deleted successfully!');
       setChatManagementOpen(false);
@@ -198,7 +196,7 @@ export function SettingsDialog({ open, onClose }: {
   };
 
   const handleSave = () => {
-    // Save tokens to settings store
+    // save tokens to settings store
     settingsStore.updateServiceTokens(tokens);
     toast.success('Settings saved successfully!');
     onClose();
@@ -221,7 +219,7 @@ export function SettingsDialog({ open, onClose }: {
                       type="text"
                       className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                       value={tokens.netlify}
-                      onChange={e => setTokens(t => ({ ...t, netlify: e.target.value }))}
+                      onChange={(e) => setTokens((t) => ({ ...t, netlify: e.target.value }))}
                       placeholder="Enter Netlify token"
                     />
                   </div>
@@ -231,7 +229,7 @@ export function SettingsDialog({ open, onClose }: {
                       type="text"
                       className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                       value={tokens.vercel}
-                      onChange={e => setTokens(t => ({ ...t, vercel: e.target.value }))}
+                      onChange={(e) => setTokens((t) => ({ ...t, vercel: e.target.value }))}
                       placeholder="Enter Vercel token"
                     />
                   </div>
@@ -241,13 +239,13 @@ export function SettingsDialog({ open, onClose }: {
                       type="text"
                       className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                       value={tokens.github}
-                      onChange={e => setTokens(t => ({ ...t, github: e.target.value }))}
+                      onChange={(e) => setTokens((t) => ({ ...t, github: e.target.value }))}
                       placeholder="Enter GitHub token"
                     />
                   </div>
                 </div>
               </div>
-              
+
               {/* Chat Management Section */}
               <div className="border-t border-bolt-elements-borderColor pt-4">
                 <h3 className="text-lg font-medium mb-3 text-bolt-elements-textPrimary">Chat Management</h3>
@@ -255,7 +253,9 @@ export function SettingsDialog({ open, onClose }: {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Export All Chats</p>
-                      <p className="text-sm text-bolt-elements-textSecondary">Download all your chat history as a JSON file</p>
+                      <p className="text-sm text-bolt-elements-textSecondary">
+                        Download all your chat history as a JSON file
+                      </p>
                     </div>
                     <DialogButton type="secondary" onClick={handleExportAllChats}>
                       Export
@@ -275,12 +275,16 @@ export function SettingsDialog({ open, onClose }: {
             </div>
           </DialogDescription>
           <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-end">
-            <DialogButton type="secondary" onClick={onClose}>Cancel</DialogButton>
-            <DialogButton type="primary" onClick={handleSave}>Save</DialogButton>
+            <DialogButton type="secondary" onClick={onClose}>
+              Cancel
+            </DialogButton>
+            <DialogButton type="primary" onClick={handleSave}>
+              Save
+            </DialogButton>
           </div>
         </Dialog>
       </RadixDialog.Root>
-      
+
       {/* Confirmation Dialog for Delete All Chats */}
       <RadixDialog.Root open={chatManagementOpen}>
         <Dialog onBackdrop={() => setChatManagementOpen(false)} onClose={() => setChatManagementOpen(false)}>
@@ -291,7 +295,8 @@ export function SettingsDialog({ open, onClose }: {
                 <strong>Warning:</strong> This action cannot be undone.
               </p>
               <p>
-                You are about to permanently delete all your chat history, including all conversations, snapshots, and checkpoints.
+                You are about to permanently delete all your chat history, including all conversations, snapshots, and
+                checkpoints.
               </p>
               <p className="mt-3 text-bolt-elements-textSecondary">
                 Consider exporting your chats first if you want to keep a backup.

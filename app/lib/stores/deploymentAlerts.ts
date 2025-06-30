@@ -18,21 +18,22 @@ export const showDeploymentAlerts = atom<boolean>(true);
 
 export function addDeploymentAlert(alert: Omit<DeploymentAlert, 'id' | 'timestamp'>) {
   const id = `deployment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
   const newAlert: DeploymentAlert = {
     ...alert,
     id,
     timestamp: Date.now(),
   };
-  
+
   deploymentAlerts.setKey(id, newAlert);
-  
-  // Auto-remove alert after duration if specified
+
+  // auto-remove alert after duration if specified
   if (alert.autoClose && alert.duration) {
     setTimeout(() => {
       removeDeploymentAlert(id);
     }, alert.duration);
   }
-  
+
   return id;
 }
 
@@ -45,6 +46,7 @@ export function removeDeploymentAlert(id: string) {
 export function updateDeploymentAlert(id: string, updates: Partial<DeploymentAlert>) {
   const alerts = deploymentAlerts.get();
   const alert = alerts[id];
+
   if (alert) {
     deploymentAlerts.setKey(id, { ...alert, ...updates });
   }
@@ -62,7 +64,7 @@ export function showDeploymentAlertsPanel() {
   showDeploymentAlerts.set(true);
 }
 
-// Helper functions for specific deployment scenarios
+// helper functions for specific deployment scenarios
 export function createDeploymentStartAlert(provider: DeploymentAlert['provider']) {
   return addDeploymentAlert({
     type: 'info',
@@ -75,9 +77,9 @@ export function createDeploymentStartAlert(provider: DeploymentAlert['provider']
 }
 
 export function createDeploymentSuccessAlert(
-  provider: DeploymentAlert['provider'], 
+  provider: DeploymentAlert['provider'],
   deploymentUrl: string,
-  alertId?: string
+  alertId?: string,
 ) {
   const alert = {
     type: 'success' as const,
@@ -96,11 +98,7 @@ export function createDeploymentSuccessAlert(
   }
 }
 
-export function createDeploymentErrorAlert(
-  provider: DeploymentAlert['provider'], 
-  error: string,
-  alertId?: string
-) {
+export function createDeploymentErrorAlert(provider: DeploymentAlert['provider'], error: string, alertId?: string) {
   const alert = {
     type: 'error' as const,
     title: `Deployment Failed`,

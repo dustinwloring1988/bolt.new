@@ -27,6 +27,7 @@ export const Messages = React.forwardRef<HTMLDivElement, MessagesProps>((props: 
             const isFirst = index === 0;
             const isLast = index === messages.length - 1;
             const key = id || `${role}-${typeof content === 'string' ? content.slice(0, 20) : ''}-${index}`;
+
             return (
               <div
                 key={key}

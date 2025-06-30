@@ -3,6 +3,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels';
 import { FileBreadcrumb } from './FileBreadcrumb';
 import { FileTree } from './FileTree';
+import { BoltTerminal } from './terminal/BoltTerminal';
 import { Terminal, type TerminalRef } from './terminal/Terminal';
 import {
   CodeMirrorEditor,
@@ -23,7 +24,6 @@ import { classNames } from '~/utils/classNames';
 import { WORK_DIR } from '~/utils/constants';
 import { renderLogger } from '~/utils/logger';
 import { isMobile } from '~/utils/mobile';
-import { BoltTerminal } from './terminal/BoltTerminal';
 
 interface EditorPanelProps {
   files?: FileMap;
@@ -57,7 +57,15 @@ export const EditorPanel = memo(
     onFileSave,
     onFileReset,
     terminalTabs,
-  }: EditorPanelProps & { terminalTabs: { active: 'bolt' | number, setActive: (tab: 'bolt' | number) => void, count: number, setCount: (n: number) => void, boltOutputBuffer: string[] } }) => {
+  }: EditorPanelProps & {
+    terminalTabs: {
+      active: 'bolt' | number;
+      setActive: (tab: 'bolt' | number) => void;
+      count: number;
+      setCount: (n: number) => void;
+      boltOutputBuffer: string[];
+    };
+  }) => {
     renderLogger.trace('EditorPanel');
 
     const themeState = useStore(themeStore.state);
@@ -134,7 +142,7 @@ export const EditorPanel = memo(
                     className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 text-sm"
                     placeholder="Search files or content..."
                     value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 <FileTree
@@ -176,7 +184,11 @@ export const EditorPanel = memo(
               <div className="h-full flex-1 overflow-hidden">
                 <CodeMirrorEditor
                   theme={effectiveTheme}
-                  editable={!isStreaming && editorDocument !== undefined && (!selectedFile || !workbenchStore.isFileLocked(selectedFile))}
+                  editable={
+                    !isStreaming &&
+                    editorDocument !== undefined &&
+                    (!selectedFile || !workbenchStore.isFileLocked(selectedFile))
+                  }
                   settings={editorSettings}
                   doc={editorDocument}
                   autoFocusOnDocumentChange={!isMobile()}
@@ -220,7 +232,8 @@ export const EditorPanel = memo(
                   className={classNames(
                     'flex items-center text-sm cursor-pointer gap-1.5 px-3 py-2 h-full whitespace-nowrap rounded-full',
                     {
-                      'bg-bolt-elements-terminals-buttonBackground text-bolt-elements-textPrimary': terminalTabs.active === 'bolt',
+                      'bg-bolt-elements-terminals-buttonBackground text-bolt-elements-textPrimary':
+                        terminalTabs.active === 'bolt',
                       'bg-bolt-elements-background-depth-2 text-bolt-elements-textSecondary hover:bg-bolt-elements-terminals-buttonBackground':
                         terminalTabs.active !== 'bolt',
                     },
@@ -251,7 +264,11 @@ export const EditorPanel = memo(
                   );
                 })}
                 {terminalTabs.count < MAX_TERMINALS && (
-                  <IconButton icon="i-ph:plus" size="md" onClick={() => terminalTabs.setCount(terminalTabs.count + 1)} />
+                  <IconButton
+                    icon="i-ph:plus"
+                    size="md"
+                    onClick={() => terminalTabs.setCount(terminalTabs.count + 1)}
+                  />
                 )}
                 <IconButton
                   className="ml-auto"
@@ -274,12 +291,14 @@ export const EditorPanel = memo(
                       <Terminal
                         key={index}
                         className="h-full w-full"
-                        ref={ref => { terminalRefs.current[index] = ref; }}
-                        onTerminalReady={terminal => workbenchStore.attachTerminal(terminal)}
+                        ref={(ref) => {
+                          terminalRefs.current[index] = ref;
+                        }}
+                        onTerminalReady={(terminal) => workbenchStore.attachTerminal(terminal)}
                         onTerminalResize={(cols, rows) => workbenchStore.onTerminalResize(cols, rows)}
                         theme={effectiveTheme}
                       />
-                    ) : null
+                    ) : null,
                   )
                 )}
               </div>

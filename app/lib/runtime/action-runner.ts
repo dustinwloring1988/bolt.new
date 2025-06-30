@@ -33,8 +33,9 @@ export type ActionStateUpdate =
 
 type ActionsMap = MapStore<Record<string, ActionState>>;
 
-// Add a static/global output handler for AI shell output
+// add a static/global output handler for AI shell output
 type ShellOutputHandler = (data: string) => void;
+
 let globalShellOutputHandler: ShellOutputHandler | null = null;
 
 export function setGlobalShellOutputHandler(handler: ShellOutputHandler | null) {
@@ -150,6 +151,7 @@ export class ActionRunner {
           if (globalShellOutputHandler) {
             globalShellOutputHandler(data);
           }
+
           console.log(data);
         },
       }),

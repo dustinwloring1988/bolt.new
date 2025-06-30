@@ -224,15 +224,20 @@ export class FilesStore {
   }
 
   #loadLockedFiles(): Set<string> {
-    if (typeof localStorage === 'undefined') return new Set();
+    if (typeof localStorage === 'undefined') {
+      return new Set();
+    }
+
     try {
       const data = localStorage.getItem(LOCKED_FILES_KEY);
+
       if (data) {
         return new Set(JSON.parse(data));
       }
     } catch (e) {
       // ignore
     }
+
     return new Set();
   }
 
@@ -240,13 +245,17 @@ export class FilesStore {
     if (this.isFileLocked(oldPath)) {
       throw new Error('File is locked');
     }
+
     const webcontainer = await this.#webcontainer;
     await webcontainer.fs.rename(oldPath, newPath);
+
     const file = this.getFile(oldPath);
+
     if (file) {
       this.files.setKey(newPath, file);
       this.files.setKey(oldPath, undefined);
     }
+
     if (this.lockedFiles.has(oldPath)) {
       this.lockedFiles.delete(oldPath);
       this.lockedFiles.add(newPath);
@@ -258,6 +267,7 @@ export class FilesStore {
     if (this.isFileLocked(filePath)) {
       throw new Error('File is locked');
     }
+
     const webcontainer = await this.#webcontainer;
     await webcontainer.fs.rm(filePath);
     this.files.setKey(filePath, undefined);

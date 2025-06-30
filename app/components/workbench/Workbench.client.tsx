@@ -1,30 +1,29 @@
 import { useStore } from '@nanostores/react';
 import { motion, type HTMLMotionProps, type Variants } from 'framer-motion';
+import JSZip from 'jszip';
 import { computed } from 'nanostores';
 import * as React from 'react';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
+import { BoltTerminal } from './terminal/BoltTerminal';
 import { DiffView } from '~/components/editor/DiffView';
 import {
   type OnChangeCallback as OnEditorChange,
   type OnScrollCallback as OnEditorScroll,
 } from '~/components/editor/codemirror/CodeMirrorEditor';
+import { deployToNetlify, deployToVercel } from '~/components/sidebar/Menu.client';
+import { DialogRoot, Dialog, DialogTitle, DialogDescription, DialogButton } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
 import { PanelHeaderButton } from '~/components/ui/PanelHeaderButton';
+import { QRCodeModal } from '~/components/ui/QRCodeModal';
 import { Slider, type SliderOptions } from '~/components/ui/Slider';
+import { setGlobalShellOutputHandler } from '~/lib/runtime/action-runner';
+import { detectExpoUrl, showQRCode } from '~/lib/stores/qrCode';
 import { workbenchStore, type WorkbenchViewType } from '~/lib/stores/workbench';
 import { classNames } from '~/utils/classNames';
 import { cubicEasingFn } from '~/utils/easings';
-import { renderLogger } from '~/utils/logger';
-import { DialogRoot, Dialog, DialogTitle, DialogDescription, DialogButton } from '~/components/ui/Dialog';
-import { BoltTerminal } from './terminal/BoltTerminal';
-import { setGlobalShellOutputHandler } from '~/lib/runtime/action-runner';
-import { QRCodeModal } from '~/components/ui/QRCodeModal';
-import { detectExpoUrl, showQRCode } from '~/lib/stores/qrCode';
-import JSZip from 'jszip';
-import { deployToNetlify, deployToVercel } from '~/components/sidebar/Menu.client';
 import {
   parseGitHubRepo,
   fetchGitHubRepoFiles,
@@ -37,6 +36,7 @@ import {
   type GitHubRepo,
   type GitHubBranch,
 } from '~/utils/github';
+import { renderLogger } from '~/utils/logger';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -103,7 +103,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const [supabaseUrl, setSupabaseUrl] = useState(localStorage.getItem('bolt_supabase_url') || '');
   const [supabaseKey, setSupabaseKey] = useState(localStorage.getItem('bolt_supabase_key') || '');
   const [supabaseToken, setSupabaseToken] = useState(localStorage.getItem('bolt_supabase_token') || '');
-  const [projects, setProjects] = useState<{ id: string; name: string; db_host: string; }[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string; db_host: string }[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [status, setStatus] = useState<'connected' | 'not_connected' | 'error'>('not_connected');
   const [error, setError] = useState<string>('');
@@ -140,9 +140,11 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   useEffect(() => {
     async function checkStatus() {
       setError('');
+
       if (supabaseUrl && supabaseKey) {
         try {
           const res = await fetch(`${supabaseUrl}/rest/v1/?apikey=${supabaseKey}`);
+
           if (res.ok) {
             setStatus('connected');
           } else {
@@ -162,15 +164,17 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
   useEffect(() => {
     setGlobalShellOutputHandler((data: string) => {
-      setBoltOutputBuffer(prev => [...prev, data]);
-      
+      setBoltOutputBuffer((prev) => [...prev, data]);
+
       // Check for Expo URLs in terminal output
       const expoUrl = detectExpoUrl(data);
+
       if (expoUrl) {
         // Auto-show QR code when Expo URL is detected
         showQRCode(expoUrl);
       }
     });
+
     return () => {
       setGlobalShellOutputHandler(null);
     };
@@ -200,13 +204,22 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     setError('');
     setProjects([]);
     setSelectedProject('');
+
     try {
       const res = await fetch('https://api.supabase.com/v1/projects', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to fetch projects.');
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch projects.');
+      }
+
       const data = await res.json();
-      if (Array.isArray(data) && data.every(p => p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.db_host === 'string')) {
+
+      if (
+        Array.isArray(data) &&
+        data.every((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.db_host === 'string')
+      ) {
         setProjects(data);
       } else {
         setProjects([]);
@@ -220,15 +233,22 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
   async function fetchProjectKeys(projectId: string, token: string) {
     setError('');
+
     try {
       const res = await fetch(`https://api.supabase.com/v1/projects/${projectId}/api-keys`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to fetch project keys.');
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch project keys.');
+      }
+
       const data = await res.json();
+
       if (Array.isArray(data)) {
         // Find anon/public key
         const anonKey = data.find((k: any) => k.name === 'anon' || k.name === 'public');
+
         if (anonKey && anonKey.api_key) {
           setSupabaseKey(anonKey.api_key);
         } else {
@@ -244,9 +264,12 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
 
   function handleProjectSelect(id: string) {
     setSelectedProject(id);
-    const project = projects.find(p => p.id === id);
+
+    const project = projects.find((p) => p.id === id);
+
     if (project) {
       setSupabaseUrl(`https://${project.db_host}`);
+
       if (supabaseToken) {
         fetchProjectKeys(project.id, supabaseToken);
       }
@@ -259,6 +282,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     localStorage.setItem('bolt_supabase_key', supabaseKey);
     localStorage.setItem('bolt_supabase_token', supabaseToken);
     setSupabaseDialogOpen(false);
+
     if (window.syncSupabaseEnv) {
       try {
         await window.syncSupabaseEnv(supabaseUrl, supabaseKey);
@@ -281,6 +305,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     localStorage.removeItem('bolt_supabase_url');
     localStorage.removeItem('bolt_supabase_key');
     localStorage.removeItem('bolt_supabase_token');
+
     // Try to remove .env from WebContainer
     if (window.syncSupabaseEnv) {
       try {
@@ -319,6 +344,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     // Check GitHub token validity on mount
     const checkGitHubToken = async () => {
       const token = getGitHubToken();
+
       if (token) {
         const isValid = await validateGitHubToken();
         setGithubTokenValid(isValid);
@@ -333,7 +359,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     setGithubDialogType(type);
     setGithubError('');
     setGithubDialogOpen(true);
-    
+
     if (type === 'push' && userRepos.length === 0) {
       loadUserRepos();
     }
@@ -342,6 +368,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   const loadUserRepos = async () => {
     try {
       setGithubLoading(true);
+
       const repos = await getUserRepos();
       setUserRepos(repos);
     } catch (error) {
@@ -360,28 +387,28 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     try {
       setGithubLoading(true);
       setGithubError('');
-      
+
       const repo = parseGitHubRepo(githubRepoUrl);
       repo.branch = selectedBranch;
-      
+
       const files = await fetchGitHubRepoFiles(repo);
-      
+
       // Clear existing files first
       const currentFiles = workbenchStore.files.get();
+
       for (const filePath of Object.keys(currentFiles)) {
         await workbenchStore.deleteFile(filePath);
       }
-      
+
       // Add new files to the workbench
       for (const [path, content] of Object.entries(files)) {
         await workbenchStore.setCurrentDocumentContent(content);
         await workbenchStore.saveFile(path);
       }
-      
+
       toast.success(`Successfully cloned ${repo.owner}/${repo.name}`);
       setGithubDialogOpen(false);
       setGithubRepoUrl('');
-      
     } catch (error) {
       setGithubError(error instanceof Error ? error.message : 'Failed to clone repository');
     } finally {
@@ -398,19 +425,18 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     try {
       setGithubLoading(true);
       setGithubError('');
-      
+
       const repo = parseGitHubRepo(githubRepoUrl);
       repo.branch = selectedBranch;
-      
+
       const files = await getAllFilesForDeploy();
-      
+
       await pushFilesToGitHub(repo, files, githubCommitMessage);
-      
+
       toast.success(`Successfully pushed to ${repo.owner}/${repo.name}`);
       setGithubDialogOpen(false);
       setGithubRepoUrl('');
       setGithubCommitMessage('Update project files');
-      
     } catch (error) {
       setGithubError(error instanceof Error ? error.message : 'Failed to push to repository');
     } finally {
@@ -427,36 +453,39 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     try {
       setGithubLoading(true);
       setGithubError('');
-      
+
       const repoData = await createGitHubRepo({
         name: githubRepoName,
         description: githubRepoDescription,
         private: githubPrivateRepo,
       });
-      
+
       // After creating, push current files
       const files = await getAllFilesForDeploy();
+
       const repo: GitHubRepo = {
         owner: repoData.owner.login,
         name: repoData.name,
         branch: 'main',
       };
-      
+
       if (Object.keys(files).length > 0) {
         await pushFilesToGitHub(repo, files, 'Initial commit');
       }
-      
+
       toast.success(
         <span>
-          Repository created: <a href={repoData.html_url} target="_blank" rel="noopener noreferrer">{repoData.full_name}</a>
-        </span>, 
-        { autoClose: false }
+          Repository created:{' '}
+          <a href={repoData.html_url} target="_blank" rel="noopener noreferrer">
+            {repoData.full_name}
+          </a>
+        </span>,
+        { autoClose: false },
       );
-      
+
       setGithubDialogOpen(false);
       setGithubRepoName('');
       setGithubRepoDescription('');
-      
     } catch (error) {
       setGithubError(error instanceof Error ? error.message : 'Failed to create repository');
     } finally {
@@ -469,6 +498,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
       const repo = parseGitHubRepo(repoUrl);
       const branches = await getGitHubBranches(repo);
       setGithubBranches(branches);
+
       if (branches.length > 0) {
         setSelectedBranch(branches[0].name);
       }
@@ -482,21 +512,26 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
   async function getAllFilesForDeploy() {
     // Save all files first to ensure latest content
     await workbenchStore.saveAllFiles();
+
     const fileMap = workbenchStore.files.get();
     const files: { [key: string]: string } = {};
+
     for (const [path, dirent] of Object.entries(fileMap)) {
       if (dirent?.type === 'file' && !dirent.isBinary) {
         files[path.startsWith('/') ? path.slice(1) : path] = dirent.content;
       }
     }
+
     return files;
   }
 
   async function createProjectZip(files: { [key: string]: string }): Promise<Blob> {
     const zip = new JSZip();
+
     for (const [path, content] of Object.entries(files)) {
       zip.file(path, content);
     }
+
     return await zip.generateAsync({ type: 'blob' });
   }
 
@@ -532,11 +567,17 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             type="text"
                             className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                             value={supabaseToken}
-                            onChange={e => setSupabaseToken(e.target.value)}
+                            onChange={(e) => setSupabaseToken(e.target.value)}
                             placeholder="Personal access token"
                             onBlur={() => supabaseToken && fetchProjects(supabaseToken)}
                           />
-                          <button className="mt-1 text-xs underline" onClick={() => fetchProjects(supabaseToken)} disabled={!supabaseToken}>Fetch Projects</button>
+                          <button
+                            className="mt-1 text-xs underline"
+                            onClick={() => fetchProjects(supabaseToken)}
+                            disabled={!supabaseToken}
+                          >
+                            Fetch Projects
+                          </button>
                         </div>
                         {projects.length > 0 && (
                           <div>
@@ -544,11 +585,13 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             <select
                               className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                               value={selectedProject}
-                              onChange={e => handleProjectSelect(e.target.value)}
+                              onChange={(e) => handleProjectSelect(e.target.value)}
                             >
                               <option value="">-- Select a project --</option>
-                              {projects.map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
+                              {projects.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
                               ))}
                             </select>
                           </div>
@@ -559,7 +602,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             type="text"
                             className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                             value={supabaseUrl}
-                            onChange={e => setSupabaseUrl(e.target.value)}
+                            onChange={(e) => setSupabaseUrl(e.target.value)}
                             placeholder="https://xyzcompany.supabase.co"
                           />
                         </div>
@@ -569,7 +612,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             type="text"
                             className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                             value={supabaseKey}
-                            onChange={e => setSupabaseKey(e.target.value)}
+                            onChange={(e) => setSupabaseKey(e.target.value)}
                             placeholder="Your Supabase anon/public key"
                           />
                         </div>
@@ -577,15 +620,21 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       </div>
                     </DialogDescription>
                     <div className="px-5 pb-4 bg-bolt-elements-background-depth-2 flex gap-2 justify-between">
-                      <DialogButton type="danger" onClick={handleDisconnect}>Disconnect</DialogButton>
+                      <DialogButton type="danger" onClick={handleDisconnect}>
+                        Disconnect
+                      </DialogButton>
                       <div className="flex gap-2">
-                        <DialogButton type="secondary" onClick={() => setSupabaseDialogOpen(false)}>Cancel</DialogButton>
-                        <DialogButton type="primary" onClick={handleSupabaseSave}>Save</DialogButton>
+                        <DialogButton type="secondary" onClick={() => setSupabaseDialogOpen(false)}>
+                          Cancel
+                        </DialogButton>
+                        <DialogButton type="primary" onClick={handleSupabaseSave}>
+                          Save
+                        </DialogButton>
                       </div>
                     </div>
                   </Dialog>
                 </DialogRoot>
-                
+
                 {/* GitHub Integration Dialog */}
                 <DialogRoot open={githubDialogOpen}>
                   <Dialog onBackdrop={() => setGithubDialogOpen(false)} onClose={() => setGithubDialogOpen(false)}>
@@ -603,7 +652,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             </p>
                           </div>
                         )}
-                        
+
                         {githubDialogType === 'clone' && (
                           <>
                             <div>
@@ -614,6 +663,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                                 value={githubRepoUrl}
                                 onChange={(e) => {
                                   setGithubRepoUrl(e.target.value);
+
                                   if (e.target.value.trim()) {
                                     loadBranches(e.target.value);
                                   }
@@ -630,14 +680,16 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                                   onChange={(e) => setSelectedBranch(e.target.value)}
                                 >
                                   {githubBranches.map((branch) => (
-                                    <option key={branch.name} value={branch.name}>{branch.name}</option>
+                                    <option key={branch.name} value={branch.name}>
+                                      {branch.name}
+                                    </option>
                                   ))}
                                 </select>
                               </div>
                             )}
                           </>
                         )}
-                        
+
                         {githubDialogType === 'push' && (
                           <>
                             <div>
@@ -648,6 +700,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                                 value={githubRepoUrl}
                                 onChange={(e) => {
                                   setGithubRepoUrl(e.target.value);
+
                                   if (e.target.value.trim()) {
                                     loadBranches(e.target.value);
                                   }
@@ -656,7 +709,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                               />
                               {userRepos.length > 0 && (
                                 <div className="mt-2">
-                                  <label className="block text-sm text-gray-600 mb-1">Or select from your repositories:</label>
+                                  <label className="block text-sm text-gray-600 mb-1">
+                                    Or select from your repositories:
+                                  </label>
                                   <select
                                     className="w-full px-2 py-1 rounded border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1"
                                     onChange={(e) => {
@@ -669,7 +724,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                                   >
                                     <option value="">-- Select a repository --</option>
                                     {userRepos.map((repo) => (
-                                      <option key={repo.id} value={repo.full_name}>{repo.full_name}</option>
+                                      <option key={repo.id} value={repo.full_name}>
+                                        {repo.full_name}
+                                      </option>
                                     ))}
                                   </select>
                                 </div>
@@ -684,7 +741,9 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                                   onChange={(e) => setSelectedBranch(e.target.value)}
                                 >
                                   {githubBranches.map((branch) => (
-                                    <option key={branch.name} value={branch.name}>{branch.name}</option>
+                                    <option key={branch.name} value={branch.name}>
+                                      {branch.name}
+                                    </option>
                                   ))}
                                 </select>
                               </div>
@@ -701,7 +760,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                             </div>
                           </>
                         )}
-                        
+
                         {githubDialogType === 'create' && (
                           <>
                             <div>
@@ -732,11 +791,13 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                                 checked={githubPrivateRepo}
                                 onChange={(e) => setGithubPrivateRepo(e.target.checked)}
                               />
-                              <label htmlFor="private-repo" className="text-sm">Make repository private</label>
+                              <label htmlFor="private-repo" className="text-sm">
+                                Make repository private
+                              </label>
                             </div>
                           </>
                         )}
-                        
+
                         {githubError && (
                           <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                             <p className="text-red-800 text-sm">{githubError}</p>
@@ -748,24 +809,34 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                       <DialogButton type="secondary" onClick={() => setGithubDialogOpen(false)}>
                         Cancel
                       </DialogButton>
-                      <DialogButton 
-                        type="primary" 
+                      <DialogButton
+                        type="primary"
                         onClick={() => {
-                          if (githubLoading || githubTokenValid === false) return;
-                          if (githubDialogType === 'clone') handleCloneRepository();
-                          else if (githubDialogType === 'push') handlePushToRepository();
-                          else if (githubDialogType === 'create') handleCreateRepository();
+                          if (githubLoading || githubTokenValid === false) {
+                            return;
+                          }
+
+                          if (githubDialogType === 'clone') {
+                            handleCloneRepository();
+                          } else if (githubDialogType === 'push') {
+                            handlePushToRepository();
+                          } else if (githubDialogType === 'create') {
+                            handleCreateRepository();
+                          }
                         }}
                       >
-                        {githubLoading ? 'Processing...' : (
-                          githubDialogType === 'clone' ? 'Clone' :
-                          githubDialogType === 'push' ? 'Push' : 'Create'
-                        )}
+                        {githubLoading
+                          ? 'Processing...'
+                          : githubDialogType === 'clone'
+                            ? 'Clone'
+                            : githubDialogType === 'push'
+                              ? 'Push'
+                              : 'Create'}
                       </DialogButton>
                     </div>
                   </Dialog>
                 </DialogRoot>
-                
+
                 <div className="ml-auto" />
                 {selectedView === 'code' && (
                   <PanelHeaderButton
@@ -816,9 +887,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                   initial={{ x: selectedView === 'diff' ? 0 : selectedView === 'code' ? '100%' : '-100%' }}
                   animate={{ x: selectedView === 'diff' ? 0 : selectedView === 'code' ? '100%' : '-100%' }}
                 >
-                  <DiffView 
-                    modifications={workbenchStore.getFileModifcations()} 
-                  />
+                  <DiffView modifications={workbenchStore.getFileModifcations()} />
                 </View>
                 <View
                   initial={{ x: selectedView === 'preview' ? 0 : '100%' }}

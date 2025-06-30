@@ -39,6 +39,7 @@ export class SupabaseService {
   static saveCredentials(credentials: SupabaseCredentials): void {
     localStorage.setItem(this.STORAGE_KEYS.URL, credentials.url);
     localStorage.setItem(this.STORAGE_KEYS.KEY, credentials.key);
+
     if (credentials.token) {
       localStorage.setItem(this.STORAGE_KEYS.TOKEN, credentials.token);
     }
@@ -66,19 +67,20 @@ export class SupabaseService {
 
     try {
       const res = await fetch(`${credentials.url}/rest/v1/?apikey=${credentials.key}`);
+
       if (res.ok) {
         return { status: 'connected' };
       } else {
-        return { 
-          status: 'error', 
-          error: 'Invalid Supabase credentials or URL.' 
+        return {
+          status: 'error',
+          error: 'Invalid Supabase credentials or URL.',
         };
       }
     } catch (error) {
       logger.error('Failed to check Supabase connection:', error);
-      return { 
-        status: 'error', 
-        error: 'Could not connect to Supabase.' 
+      return {
+        status: 'error',
+        error: 'Could not connect to Supabase.',
       };
     }
   }
@@ -90,7 +92,7 @@ export class SupabaseService {
     try {
       const response = await fetch('https://api.supabase.com/v1/projects', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -100,7 +102,11 @@ export class SupabaseService {
       }
 
       const projects = await response.json();
-      if (!Array.isArray(projects)) throw new Error('Invalid projects response');
+
+      if (!Array.isArray(projects)) {
+        throw new Error('Invalid projects response');
+      }
+
       return projects.map((project: any) => ({
         id: project.id,
         name: project.name,
@@ -116,14 +122,17 @@ export class SupabaseService {
   /**
    * Fetch project API keys
    */
-  static async fetchProjectKeys(projectId: string, token: string): Promise<{
+  static async fetchProjectKeys(
+    projectId: string,
+    token: string,
+  ): Promise<{
     anon: string;
     service_role: string;
   }> {
     try {
       const response = await fetch(`https://api.supabase.com/v1/projects/${projectId}/api-keys`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -133,7 +142,11 @@ export class SupabaseService {
       }
 
       const keys = await response.json();
-      if (!Array.isArray(keys)) throw new Error('Invalid keys response');
+
+      if (!Array.isArray(keys)) {
+        throw new Error('Invalid keys response');
+      }
+
       const anonKey = keys.find((key: any) => key.name === 'anon public');
       const serviceKey = keys.find((key: any) => key.name === 'service_role');
 
@@ -156,21 +169,21 @@ export class SupabaseService {
    * Sync environment variables to Supabase
    */
   static async syncEnvironmentVariables(
-    projectId: string, 
-    token: string, 
-    variables: Record<string, string>
+    projectId: string,
+    token: string,
+    variables: Record<string, string>,
   ): Promise<void> {
     try {
       const response = await fetch(`https://api.supabase.com/v1/projects/${projectId}/secrets`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           secrets: Object.entries(variables).map(([key, value]) => ({
             name: key,
-            value: value,
+            value,
           })),
         }),
       });
@@ -214,9 +227,10 @@ export class SupabaseService {
       const urlObj = new URL(url);
       const hostname = urlObj.hostname;
       const match = hostname.match(/^([^.]+)\.supabase\.co$/);
+
       return match ? match[1] : null;
     } catch {
       return null;
     }
   }
-} 
+}

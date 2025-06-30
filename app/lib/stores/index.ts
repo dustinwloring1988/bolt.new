@@ -5,7 +5,16 @@ export * from './types';
 export * from './base/BaseStore';
 
 // Export store registry with explicit re-export to avoid conflicts
-export { StoreRegistry as StoreRegistryImpl, storeRegistry, registerStore, getStore, unregisterStore, listStores, resetAllStores as resetRegistry, destroyRegistry } from './registry';
+export {
+  StoreRegistry as StoreRegistryImpl,
+  storeRegistry,
+  registerStore,
+  getStore,
+  unregisterStore,
+  listStores,
+  resetAllStores as resetRegistry,
+  destroyRegistry,
+} from './registry';
 
 // Export middleware system
 export * from './middleware';
@@ -14,23 +23,72 @@ export * from './middleware';
 export * from './utils';
 
 // Export individual stores with explicit re-exports to avoid conflicts
-export { ChatStore, chatStore, chatState, startChat, stopChat, abortChat, toggleChat, setStreaming, addMessage, reset as resetChat } from './chat';
-export { ThemeStore, themeStore, themeState, setTheme, toggleTheme, getEffectiveTheme, isDark, isLight, isAuto, reset as resetTheme, kTheme, DEFAULT_THEME, themeIsDark } from './theme';
-export { SettingsStore, settingsStore, settingsState, updateServiceTokens, getServiceToken, getServiceTokens, updateShortcuts, reset as resetSettings, exportSettings, importSettings, shortcutsStore } from './settings';
+export {
+  ChatStore,
+  chatStore,
+  chatState,
+  startChat,
+  stopChat,
+  abortChat,
+  toggleChat,
+  setStreaming,
+  addMessage,
+  reset as resetChat,
+} from './chat';
+export {
+  ThemeStore,
+  themeStore,
+  themeState,
+  setTheme,
+  toggleTheme,
+  getEffectiveTheme,
+  isDark,
+  isLight,
+  isAuto,
+  reset as resetTheme,
+  kTheme,
+  DEFAULT_THEME,
+  themeIsDark,
+} from './theme';
+export {
+  SettingsStore,
+  settingsStore,
+  settingsState,
+  updateServiceTokens,
+  getServiceToken,
+  getServiceTokens,
+  updateShortcuts,
+  reset as resetSettings,
+  exportSettings,
+  importSettings,
+  shortcutsStore,
+} from './settings';
 export { WorkbenchStore, workbenchStore } from './workbench';
 export { FilesStore } from './files';
 export { EditorStore } from './editor';
 export { TerminalStore } from './terminal';
 export { PreviewsStore } from './previews';
 export { qrCodeStore } from './qrCode';
-export { deploymentAlerts, showDeploymentAlerts, addDeploymentAlert, removeDeploymentAlert, updateDeploymentAlert, clearAllDeploymentAlerts, hideDeploymentAlerts, showDeploymentAlertsPanel, createDeploymentStartAlert, createDeploymentSuccessAlert, createDeploymentErrorAlert } from './deploymentAlerts';
+export {
+  deploymentAlerts,
+  showDeploymentAlerts,
+  addDeploymentAlert,
+  removeDeploymentAlert,
+  updateDeploymentAlert,
+  clearAllDeploymentAlerts,
+  hideDeploymentAlerts,
+  showDeploymentAlertsPanel,
+  createDeploymentStartAlert,
+  createDeploymentSuccessAlert,
+  createDeploymentErrorAlert,
+} from './deploymentAlerts';
 
 // Re-export store instances for convenience
 import { chatStore } from './chat';
-import { themeStore } from './theme';
-import { settingsStore } from './settings';
-import { workbenchStore } from './workbench';
 import { storeRegistry } from './registry';
+import { settingsStore } from './settings';
+import { themeStore } from './theme';
+import { workbenchStore } from './workbench';
 
 // Register all stores with the registry
 export function initializeStores() {
@@ -67,4 +125,4 @@ export function getStoreStats() {
 // Auto-initialize stores when this module is imported
 if (typeof window !== 'undefined') {
   initializeStores();
-} 
+}

@@ -46,7 +46,7 @@ export class ChatStore {
   private readonly storageKey = 'bolt_chat_state';
 
   // Main store state
-  public readonly state: MapStore<ChatState> = map<ChatState>({
+  readonly state: MapStore<ChatState> = map<ChatState>({
     started: false,
     aborted: false,
     showChat: true,
@@ -90,9 +90,9 @@ export class ChatStore {
   /**
    * Start a new chat session
    */
-  public startChat(): void {
+  startChat(): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       started: true,
@@ -107,9 +107,9 @@ export class ChatStore {
   /**
    * Stop the current chat session
    */
-  public stopChat(): void {
+  stopChat(): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       started: false,
@@ -122,9 +122,9 @@ export class ChatStore {
   /**
    * Abort the current chat session
    */
-  public abortChat(): void {
+  abortChat(): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       aborted: true,
@@ -137,9 +137,9 @@ export class ChatStore {
   /**
    * Toggle chat visibility
    */
-  public toggleChat(): void {
+  toggleChat(): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       showChat: !currentState.showChat,
@@ -151,9 +151,9 @@ export class ChatStore {
   /**
    * Set streaming state
    */
-  public setStreaming(isStreaming: boolean): void {
+  setStreaming(isStreaming: boolean): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       isStreaming,
@@ -165,9 +165,9 @@ export class ChatStore {
   /**
    * Add a message to the chat
    */
-  public addMessage(messageId: string): void {
+  addMessage(messageId: string): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       lastMessageId: messageId,
@@ -180,7 +180,7 @@ export class ChatStore {
   /**
    * Reset the chat store to initial state
    */
-  public reset(): void {
+  reset(): void {
     this.state.set({
       started: false,
       aborted: false,
@@ -199,14 +199,14 @@ export class ChatStore {
   /**
    * Get current chat state
    */
-  public getState(): ChatState {
+  getState(): ChatState {
     return this.state.get();
   }
 
   /**
    * Check if chat is active
    */
-  public isActive(): boolean {
+  isActive(): boolean {
     const state = this.state.get();
     return state.started && !state.aborted;
   }
@@ -214,17 +214,20 @@ export class ChatStore {
   /**
    * Check if chat is streaming
    */
-  public isStreaming(): boolean {
+  isStreaming(): boolean {
     return this.state.get().isStreaming;
   }
 
   /**
    * Get chat session duration
    */
-  public getSessionDuration(): number | undefined {
+  getSessionDuration(): number | undefined {
     const state = this.state.get();
-    if (!state.sessionStartTime) return undefined;
-    
+
+    if (!state.sessionStartTime) {
+      return undefined;
+    }
+
     return Date.now() - state.sessionStartTime.getTime();
   }
 
@@ -232,8 +235,10 @@ export class ChatStore {
    * Persist state to localStorage
    */
   private persistState(state: ChatState): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const dataToPersist = {
         started: state.started,
@@ -241,7 +246,7 @@ export class ChatStore {
         messageCount: state.messageCount,
         lastMessageId: state.lastMessageId,
       };
-      
+
       localStorage.setItem(this.storageKey, JSON.stringify(dataToPersist));
     } catch (error) {
       logger.error('Failed to persist chat state:', error);
@@ -252,14 +257,17 @@ export class ChatStore {
    * Restore state from localStorage
    */
   private restoreState(): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const stored = localStorage.getItem(this.storageKey);
+
       if (stored) {
         const parsed = JSON.parse(stored);
         const currentState = this.state.get();
-        
+
         this.state.set({
           ...currentState,
           started: parsed.started ?? false,
@@ -267,7 +275,7 @@ export class ChatStore {
           messageCount: parsed.messageCount ?? 0,
           lastMessageId: parsed.lastMessageId,
         });
-        
+
         logger.debug('Chat state restored from storage');
       }
     } catch (error) {
@@ -279,7 +287,10 @@ export class ChatStore {
    * Remove stored state
    */
   private removeFromStorage(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     localStorage.removeItem(this.storageKey);
   }
 }

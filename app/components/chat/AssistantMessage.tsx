@@ -1,5 +1,5 @@
-import { memo } from 'react';
 import type { Message } from 'ai';
+import { memo } from 'react';
 import { Markdown } from './Markdown';
 
 interface AssistantMessageProps {
@@ -13,13 +13,7 @@ interface AssistantMessageProps {
 export const AssistantMessage = memo(({ content, append, chatMode, setChatMode, model }: AssistantMessageProps) => {
   return (
     <div className="overflow-hidden w-full">
-      <Markdown
-        html
-        append={append}
-        chatMode={chatMode}
-        setChatMode={setChatMode}
-        model={model}
-      >
+      <Markdown html append={append} chatMode={chatMode} setChatMode={setChatMode} model={model}>
         {content}
       </Markdown>
     </div>

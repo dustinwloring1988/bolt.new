@@ -36,9 +36,10 @@ export interface GitHubCreateRepoOptions {
 }
 
 export function parseGitHubRepo(githubRepo: string): GitHubRepo {
-  // Handle full GitHub URLs
+  // handle full GitHub URLs
   if (githubRepo.includes('github.com')) {
     const match = githubRepo.match(/github\.com[/:]([^/]+)\/([^/\.]+)/);
+
     if (match) {
       return {
         owner: match[1],
@@ -47,16 +48,18 @@ export function parseGitHubRepo(githubRepo: string): GitHubRepo {
       };
     }
   }
-  
-  // Handle owner/repo format
+
+  // handle owner/repo format
   const parts = githubRepo.split('/');
+
   if (parts.length >= 2) {
     return {
       owner: parts[0],
       name: parts[1],
-      branch: 'main', // Default branch
+      branch: 'main', // default branch
     };
   }
+
   throw new Error(`Invalid GitHub repository format: ${githubRepo}`);
 }
 
@@ -66,12 +69,14 @@ export function getGitHubToken(): string {
 
 function getAuthHeaders(): Record<string, string> {
   const token = getGitHubToken();
+
   if (!token) {
     throw new Error('GitHub token not set. Please add it in settings.');
   }
+
   return {
-    'Authorization': `Bearer ${token}`,
-    'Accept': 'application/vnd.github.v3+json',
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github.v3+json',
     'Content-Type': 'application/json',
   };
 }
@@ -79,58 +84,58 @@ function getAuthHeaders(): Record<string, string> {
 export async function fetchGitHubRepoFiles(repo: GitHubRepo): Promise<{ [path: string]: string }> {
   const { owner, name, branch = 'main' } = repo;
   const headers = getAuthHeaders();
-  
+
   try {
-    // First, get the branch reference to get the SHA
-    const branchResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${name}/branches/${branch}`,
-      { headers }
-    );
-    
+    // first, get the branch reference to get the SHA
+    const branchResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/branches/${branch}`, { headers });
+
     if (!branchResponse.ok) {
       if (branchResponse.status === 404) {
         throw new Error(`Branch '${branch}' not found in repository ${owner}/${name}`);
       }
+
       throw new Error(`Failed to fetch branch: ${branchResponse.statusText}`);
     }
-    
-    const branchData = await branchResponse.json() as { commit: { sha: string } };
+
+    const branchData = (await branchResponse.json()) as { commit: { sha: string } };
     const treeSha = branchData.commit.sha;
-    
-    // Now get the repository tree using the SHA
-    const treeResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${name}/git/trees/${treeSha}?recursive=1`,
-      { headers }
-    );
-    
+
+    // now get the repository tree using the SHA
+    const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/trees/${treeSha}?recursive=1`, {
+      headers,
+    });
+
     if (!treeResponse.ok) {
       if (treeResponse.status === 404) {
         throw new Error(`Repository ${owner}/${name} not found or you don't have access`);
       }
+
       throw new Error(`Failed to fetch repository tree: ${treeResponse.statusText}`);
     }
-    
-    const treeData = await treeResponse.json() as { tree: Array<{ type: string; path: string }> };
+
+    const treeData = (await treeResponse.json()) as { tree: Array<{ type: string; path: string }> };
     const files: { [path: string]: string } = {};
-    
-    // Filter for files (not directories) and common file types
-    const fileNodes = treeData.tree.filter((item) => 
-      item.type === 'blob' && 
-      !item.path.includes('node_modules/') &&
-      !item.path.startsWith('.git/') &&
-      isTextFile(item.path)
+
+    // filter for files (not directories) and common file types
+    const fileNodes = treeData.tree.filter(
+      (item) =>
+        item.type === 'blob' &&
+        !item.path.includes('node_modules/') &&
+        !item.path.startsWith('.git/') &&
+        isTextFile(item.path),
     );
-    
-    // Fetch content for each file
+
+    // fetch content for each file
     for (const fileNode of fileNodes) {
       try {
         const fileResponse = await fetch(
           `https://api.github.com/repos/${owner}/${name}/contents/${fileNode.path}?ref=${branch}`,
-          { headers }
+          { headers },
         );
-        
+
         if (fileResponse.ok) {
-          const fileData = await fileResponse.json() as { content?: string; encoding?: string };
+          const fileData = (await fileResponse.json()) as { content?: string; encoding?: string };
+
           if (fileData.content && fileData.encoding === 'base64') {
             const content = atob(fileData.content);
             files[fileNode.path] = content;
@@ -138,10 +143,10 @@ export async function fetchGitHubRepoFiles(repo: GitHubRepo): Promise<{ [path: s
         }
       } catch (error) {
         console.warn(`Failed to fetch file ${fileNode.path}:`, error);
-        // Continue with other files
+        // continue with other files
       }
     }
-    
+
     return files;
   } catch (error) {
     console.error('Error fetching GitHub repository:', error);
@@ -151,28 +156,71 @@ export async function fetchGitHubRepoFiles(repo: GitHubRepo): Promise<{ [path: s
 
 function isTextFile(path: string): boolean {
   const textExtensions = [
-    '.js', '.jsx', '.ts', '.tsx', '.json', '.md', '.txt', '.yaml', '.yml',
-    '.html', '.css', '.scss', '.sass', '.less', '.vue', '.svelte',
-    '.py', '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.php', '.rb',
-    '.go', '.rs', '.swift', '.kt', '.scala', '.clj', '.hs', '.elm',
-    '.sql', '.xml', '.svg', '.gitignore', '.env.example', '.dockerignore'
+    '.js',
+    '.jsx',
+    '.ts',
+    '.tsx',
+    '.json',
+    '.md',
+    '.txt',
+    '.yaml',
+    '.yml',
+    '.html',
+    '.css',
+    '.scss',
+    '.sass',
+    '.less',
+    '.vue',
+    '.svelte',
+    '.py',
+    '.java',
+    '.c',
+    '.cpp',
+    '.h',
+    '.hpp',
+    '.cs',
+    '.php',
+    '.rb',
+    '.go',
+    '.rs',
+    '.swift',
+    '.kt',
+    '.scala',
+    '.clj',
+    '.hs',
+    '.elm',
+    '.sql',
+    '.xml',
+    '.svg',
+    '.gitignore',
+    '.env.example',
+    '.dockerignore',
   ];
-  
+
   const fileName = path.toLowerCase();
-  
-  // Check for specific filenames
+
+  // check for specific filenames
   const textFiles = [
-    'readme', 'license', 'changelog', 'contributing', 'dockerfile',
-    'makefile', 'package.json', 'tsconfig.json', 'webpack.config.js',
-    'vite.config.js', 'next.config.js', 'tailwind.config.js'
+    'readme',
+    'license',
+    'changelog',
+    'contributing',
+    'dockerfile',
+    'makefile',
+    'package.json',
+    'tsconfig.json',
+    'webpack.config.js',
+    'vite.config.js',
+    'next.config.js',
+    'tailwind.config.js',
   ];
-  
-  if (textFiles.some(file => fileName.includes(file))) {
+
+  if (textFiles.some((file) => fileName.includes(file))) {
     return true;
   }
-  
-  // Check file extensions
-  return textExtensions.some(ext => fileName.endsWith(ext));
+
+  // check file extensions
+  return textExtensions.some((ext) => fileName.endsWith(ext));
 }
 
 export function generateTemplatePrompt(template: { label: string; githubRepo: string; description: string }): string {
@@ -190,10 +238,10 @@ Please:
 Start by creating the basic project structure based on the template.`;
 }
 
-// Repository Management Functions
+// repository management functions
 export async function createGitHubRepo(options: GitHubCreateRepoOptions): Promise<any> {
   const headers = getAuthHeaders();
-  
+
   const response = await fetch('https://api.github.com/user/repos', {
     method: 'POST',
     headers,
@@ -204,156 +252,167 @@ export async function createGitHubRepo(options: GitHubCreateRepoOptions): Promis
       auto_init: options.auto_init || false,
     }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
+
     if (error instanceof Error) {
       throw new Error(`Failed to create repository: ${error.message || response.statusText}`);
     } else {
       throw new Error(`Failed to create repository: ${String(error) || response.statusText}`);
     }
   }
-  
+
   return await response.json();
 }
 
 export async function getGitHubRepo(repo: GitHubRepo): Promise<any> {
   const { owner, name } = repo;
   const headers = getAuthHeaders();
-  
+
   const response = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
     headers,
   });
-  
+
   if (!response.ok) {
     throw new Error(`Repository not found: ${owner}/${name}`);
   }
-  
+
   return await response.json();
 }
 
 export async function getGitHubBranches(repo: GitHubRepo): Promise<GitHubBranch[]> {
   const { owner, name } = repo;
   const headers = getAuthHeaders();
-  
+
   const response = await fetch(`https://api.github.com/repos/${owner}/${name}/branches`, {
     headers,
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch branches: ${response.statusText}`);
   }
-  
+
   return await response.json();
 }
 
 export async function createGitHubBranch(repo: GitHubRepo, branchName: string, fromBranch = 'main'): Promise<any> {
   const { owner, name } = repo;
   const headers = getAuthHeaders();
-  
-  // First get the SHA of the source branch
+
+  // first get the SHA of the source branch
   const refResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/refs/heads/${fromBranch}`, {
     headers,
   });
-  
+
   if (!refResponse.ok) {
     throw new Error(`Source branch '${fromBranch}' not found`);
   }
-  
+
   const refData = await refResponse.json();
+
   if (typeof refData !== 'object' || refData === null || !('object' in refData)) {
     throw new Error('Invalid refData');
   }
+
   const sha = (refData as any).object.sha;
-  
-  // Create the new branch
+
+  // create the new branch
   const response = await fetch(`https://api.github.com/repos/${owner}/${name}/git/refs`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
       ref: `refs/heads/${branchName}`,
-      sha: sha,
+      sha,
     }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
+
     if (error instanceof Error) {
       throw new Error(`Failed to create branch: ${error.message || response.statusText}`);
     } else {
       throw new Error(`Failed to create branch: ${String(error) || response.statusText}`);
     }
   }
-  
+
   return await response.json();
 }
 
 export async function pushFilesToGitHub(
-  repo: GitHubRepo, 
-  files: { [path: string]: string }, 
-  commitMessage: string
+  repo: GitHubRepo,
+  files: { [path: string]: string },
+  commitMessage: string,
 ): Promise<GitHubCommit> {
   const { owner, name, branch = 'main' } = repo;
   const headers = getAuthHeaders();
-  
+
   try {
-    // Get the current branch reference
+    // get the current branch reference
     const refResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/refs/heads/${branch}`, {
       headers,
     });
-    
+
     if (!refResponse.ok) {
       throw new Error(`Branch '${branch}' not found`);
     }
-    
+
     const refData = await refResponse.json();
+
     if (typeof refData !== 'object' || refData === null || !('object' in refData)) {
       throw new Error('Invalid refData');
     }
+
     const latestCommitSha = (refData as any).object.sha;
-    
-    // Get the latest commit to get the tree SHA
+
+    // get the latest commit to get the tree SHA
     const commitResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/commits/${latestCommitSha}`, {
       headers,
     });
-    
+
     const commitData = await commitResponse.json();
+
     if (typeof commitData !== 'object' || commitData === null || !('tree' in commitData)) {
       throw new Error('Invalid commitData');
     }
+
     const baseTreeSha = (commitData as any).tree.sha;
-    
-    // Create blobs for all files
+
+    // create blobs for all files
     const blobs: { [path: string]: string } = {};
+
     for (const [path, content] of Object.entries(files)) {
       const blobResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/blobs`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          content: btoa(unescape(encodeURIComponent(content))), // Convert to base64
+          content: btoa(unescape(encodeURIComponent(content))), // convert to base64
           encoding: 'base64',
         }),
       });
-      
+
       if (!blobResponse.ok) {
         throw new Error(`Failed to create blob for ${path}`);
       }
-      
+
       const blobData = await blobResponse.json();
+
       if (typeof blobData !== 'object' || blobData === null || !('sha' in blobData)) {
         throw new Error('Invalid blobData');
       }
+
       blobs[path] = (blobData as any).sha;
     }
-    
-    // Create a new tree
+
+    // create a new tree
     const treeData = Object.entries(blobs).map(([path, sha]) => ({
       path,
       mode: '100644',
       type: 'blob',
       sha,
     }));
-    
+
     const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/trees`, {
       method: 'POST',
       headers,
@@ -362,18 +421,18 @@ export async function pushFilesToGitHub(
         tree: treeData,
       }),
     });
-    
+
     if (!treeResponse.ok) {
       throw new Error('Failed to create tree');
     }
-    
+
     const newTreeData = await treeResponse.json();
-    
+
     if (typeof newTreeData !== 'object' || newTreeData === null || !('sha' in newTreeData)) {
       throw new Error('Invalid newTreeData');
     }
-    
-    // Create a new commit
+
+    // create a new commit
     const newCommitResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/commits`, {
       method: 'POST',
       headers,
@@ -383,18 +442,18 @@ export async function pushFilesToGitHub(
         parents: [latestCommitSha],
       }),
     });
-    
+
     if (!newCommitResponse.ok) {
       throw new Error('Failed to create commit');
     }
-    
+
     const newCommitData = await newCommitResponse.json();
-    
+
     if (typeof newCommitData !== 'object' || newCommitData === null || !('sha' in newCommitData)) {
       throw new Error('Invalid newCommitData');
     }
-    
-    // Update the branch reference
+
+    // update the branch reference
     const updateRefResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/refs/heads/${branch}`, {
       method: 'PATCH',
       headers,
@@ -402,11 +461,11 @@ export async function pushFilesToGitHub(
         sha: newCommitData.sha,
       }),
     });
-    
+
     if (!updateRefResponse.ok) {
       throw new Error('Failed to update branch reference');
     }
-    
+
     return newCommitData as GitHubCommit;
   } catch (error) {
     console.error('Error pushing files to GitHub:', error);
@@ -417,53 +476,54 @@ export async function pushFilesToGitHub(
 export async function forkGitHubRepo(repo: GitHubRepo): Promise<any> {
   const { owner, name } = repo;
   const headers = getAuthHeaders();
-  
+
   const response = await fetch(`https://api.github.com/repos/${owner}/${name}/forks`, {
     method: 'POST',
     headers,
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
+
     if (error instanceof Error) {
       throw new Error(`Failed to fork repository: ${error.message || response.statusText}`);
     } else {
       throw new Error(`Failed to fork repository: ${String(error) || response.statusText}`);
     }
   }
-  
+
   return await response.json();
 }
 
 export async function getUserRepos(): Promise<any[]> {
   const headers = getAuthHeaders();
-  
+
   const response = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
     headers,
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch user repositories: ${response.statusText}`);
   }
-  
+
   return await response.json();
 }
 
 export async function getGitHubUser(): Promise<any> {
   const headers = getAuthHeaders();
-  
+
   const response = await fetch('https://api.github.com/user', {
     headers,
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch user info: ${response.statusText}`);
   }
-  
+
   return await response.json();
 }
 
-// Utility function to check if GitHub token is valid
+// utility function to check if GitHub token is valid
 export async function validateGitHubToken(): Promise<boolean> {
   try {
     await getGitHubUser();

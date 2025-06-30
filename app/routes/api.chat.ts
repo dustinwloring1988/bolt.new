@@ -9,7 +9,11 @@ export async function action(args: ActionFunctionArgs) {
 }
 
 async function chatAction({ context, request }: ActionFunctionArgs) {
-  const { messages, model, chatMode } = await request.json<{ messages: Messages, model?: string, chatMode?: 'discuss' | 'build' }>();
+  const { messages, model, chatMode } = await request.json<{
+    messages: Messages;
+    model?: string;
+    chatMode?: 'discuss' | 'build';
+  }>();
 
   const stream = new SwitchableStream();
 

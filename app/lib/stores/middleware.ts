@@ -1,5 +1,5 @@
-import { createScopedLogger } from '~/utils/logger';
 import type { StoreMiddleware, StoreActionHandler, StoreActionContext, StoreActionResult } from './types';
+import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('StoreMiddleware');
 
@@ -10,7 +10,7 @@ export function createLoggingMiddleware(): StoreMiddleware {
   return (action: StoreActionHandler, context: StoreActionContext): StoreActionHandler => {
     return async (data, actionContext) => {
       const startTime = Date.now();
-      
+
       logger.debug(`Store action started`, {
         store: context.storeName,
         action: context.actionName,
@@ -20,7 +20,7 @@ export function createLoggingMiddleware(): StoreMiddleware {
       try {
         const result = await action(data, actionContext);
         const duration = Date.now() - startTime;
-        
+
         logger.debug(`Store action completed`, {
           store: context.storeName,
           action: context.actionName,
@@ -31,7 +31,7 @@ export function createLoggingMiddleware(): StoreMiddleware {
         return result;
       } catch (error) {
         const duration = Date.now() - startTime;
-        
+
         logger.error(`Store action failed`, {
           store: context.storeName,
           action: context.actionName,
@@ -49,12 +49,12 @@ export function createLoggingMiddleware(): StoreMiddleware {
  * Middleware for validating store actions
  */
 export function createValidationMiddleware<T>(
-  validator: (data: T) => { valid: boolean; errors: string[] }
+  validator: (data: T) => { valid: boolean; errors: string[] },
 ): StoreMiddleware<T> {
   return (action: StoreActionHandler<T>, context: StoreActionContext): StoreActionHandler<T> => {
     return async (data, actionContext) => {
       const validation = validator(data);
-      
+
       if (!validation.valid) {
         logger.warn(`Store action validation failed`, {
           store: context.storeName,
@@ -81,11 +81,11 @@ export function createPerformanceMiddleware(): StoreMiddleware {
   return (action: StoreActionHandler, context: StoreActionContext): StoreActionHandler => {
     return async (data, actionContext) => {
       const startTime = performance.now();
-      
+
       const result = await action(data, actionContext);
-      
+
       const duration = performance.now() - startTime;
-      
+
       // Log slow actions
       if (duration > 100) {
         logger.warn(`Slow store action detected`, {
@@ -132,15 +132,15 @@ export function createRetryMiddleware(maxRetries: number = 3, delay: number = 10
   return (action: StoreActionHandler, context: StoreActionContext): StoreActionHandler => {
     return async (data, actionContext) => {
       let lastError: Error | undefined;
-      
+
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           const result = await action(data, actionContext);
-          
+
           if (result.success) {
             return result;
           }
-          
+
           lastError = result.error;
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
@@ -154,7 +154,7 @@ export function createRetryMiddleware(maxRetries: number = 3, delay: number = 10
             maxRetries,
           });
 
-          await new Promise(resolve => setTimeout(resolve, delay * attempt));
+          await new Promise((resolve) => setTimeout(resolve, delay * attempt));
         }
       }
 
@@ -178,7 +178,7 @@ export function createRetryMiddleware(maxRetries: number = 3, delay: number = 10
  */
 export function createCachingMiddleware<T>(
   cacheKey: (data: T) => string,
-  ttl: number = 5 * 60 * 1000 // 5 minutes
+  ttl: number = 5 * 60 * 1000, // 5 minutes
 ): StoreMiddleware<T> {
   const cache = new Map<string, { data: any; timestamp: number }>();
 
@@ -186,7 +186,7 @@ export function createCachingMiddleware<T>(
     return async (data, actionContext) => {
       const key = cacheKey(data);
       const cached = cache.get(key);
-      
+
       if (cached && Date.now() - cached.timestamp < ttl) {
         logger.debug(`Store action cache hit`, {
           store: context.storeName,
@@ -202,7 +202,7 @@ export function createCachingMiddleware<T>(
       }
 
       const result = await action(data, actionContext);
-      
+
       if (result.success && result.data) {
         cache.set(key, {
           data: result.data,
@@ -224,9 +224,10 @@ export function createDebounceMiddleware(delay: number = 300): StoreMiddleware {
   return (action: StoreActionHandler, context: StoreActionContext): StoreActionHandler => {
     return async (data, actionContext) => {
       const actionKey = `${context.storeName}:${context.actionName}`;
-      
+
       // Clear existing timeout
       const existingTimeout = pendingActions.get(actionKey);
+
       if (existingTimeout) {
         clearTimeout(existingTimeout);
       }
@@ -234,6 +235,7 @@ export function createDebounceMiddleware(delay: number = 300): StoreMiddleware {
       return new Promise<StoreActionResult>((resolve) => {
         const timeout = setTimeout(async () => {
           pendingActions.delete(actionKey);
+
           const result = await action(data, actionContext);
           resolve(result);
         }, delay);
@@ -249,10 +251,7 @@ export function createDebounceMiddleware(delay: number = 300): StoreMiddleware {
  */
 export function composeMiddleware<T>(...middlewares: StoreMiddleware<T>[]): StoreMiddleware<T> {
   return (action: StoreActionHandler<T>, context: StoreActionContext): StoreActionHandler<T> => {
-    return middlewares.reduceRight(
-      (acc, middleware) => middleware(acc, context),
-      action
-    );
+    return middlewares.reduceRight((acc, middleware) => middleware(acc, context), action);
   };
 }
 
@@ -263,6 +262,6 @@ export function createDefaultMiddleware<T>(): StoreMiddleware<T> {
   return composeMiddleware<T>(
     createErrorHandlingMiddleware(),
     createLoggingMiddleware(),
-    createPerformanceMiddleware()
+    createPerformanceMiddleware(),
   );
-} 
+}

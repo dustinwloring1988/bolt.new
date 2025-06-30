@@ -1,11 +1,11 @@
 import type { Message } from 'ai';
-import type { ChatHistoryItem } from './useChatHistory';
 import type { Snapshot, Checkpoint } from './types';
+import type { ChatHistoryItem } from './useChatHistory';
 import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('ChatHistory');
 
-// Snapshot functions
+// snapshot functions
 export async function getSnapshot(db: IDBDatabase, chatId: string): Promise<Snapshot | undefined> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('snapshots', 'readonly');
@@ -66,11 +66,13 @@ export async function openDatabase(): Promise<IDBDatabase | undefined> {
           store.createIndex('urlId', 'urlId', { unique: true });
         }
       }
+
       if (oldVersion < 2) {
         if (!db.objectStoreNames.contains('snapshots')) {
           db.createObjectStore('snapshots', { keyPath: 'chatId' });
         }
       }
+
       if (oldVersion < 3) {
         if (!db.objectStoreNames.contains('checkpoints')) {
           const store = db.createObjectStore('checkpoints', { keyPath: 'id' });
@@ -192,7 +194,7 @@ export async function deleteById(db: IDBDatabase, id: string): Promise<void> {
     };
 
     transaction.oncomplete = () => {
-      // This might resolve before checkCompletion if one operation finishes much faster
+      // this might resolve before checkCompletion if one operation finishes much faster
     };
     transaction.onerror = () => reject(transaction.error);
   });
@@ -254,7 +256,7 @@ async function getUrlIds(db: IDBDatabase): Promise<string[]> {
   });
 }
 
-// Checkpoint functions
+// checkpoint functions
 export async function saveCheckpoint(db: IDBDatabase, checkpoint: Checkpoint): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('checkpoints', 'readwrite');
@@ -275,7 +277,7 @@ export async function getCheckpoints(db: IDBDatabase, chatId: string): Promise<C
 
     request.onsuccess = () => {
       const checkpoints = (request.result as Checkpoint[]).sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
       resolve(checkpoints);
     };
@@ -314,6 +316,7 @@ export async function deleteCheckpointsByChatId(db: IDBDatabase, chatId: string)
 
     request.onsuccess = (event) => {
       const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+
       if (cursor) {
         cursor.delete();
         cursor.continue();
@@ -325,38 +328,35 @@ export async function deleteCheckpointsByChatId(db: IDBDatabase, chatId: string)
   });
 }
 
-export async function updateChatDescription(
-  db: IDBDatabase,
-  id: string,
-  newDescription: string,
-): Promise<void> {
+export async function updateChatDescription(db: IDBDatabase, id: string, newDescription: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('chats', 'readwrite');
     const store = transaction.objectStore('chats');
-    
-    // First get the existing chat data
+
+    // first get the existing chat data
     const getRequest = store.get(id);
-    
+
     getRequest.onsuccess = () => {
       const chatData = getRequest.result;
+
       if (!chatData) {
         reject(new Error('Chat not found'));
         return;
       }
-      
-      // Update the description and timestamp
+
+      // update the description and timestamp
       const updatedChat = {
         ...chatData,
         description: newDescription,
         timestamp: new Date().toISOString(),
       };
-      
-      // Save the updated chat
+
+      // save the updated chat
       const putRequest = store.put(updatedChat);
       putRequest.onsuccess = () => resolve();
       putRequest.onerror = () => reject(putRequest.error);
     };
-    
+
     getRequest.onerror = () => reject(getRequest.error);
   });
 }
@@ -370,30 +370,31 @@ export async function updateChatDescriptionByUrlId(
     const transaction = db.transaction('chats', 'readwrite');
     const store = transaction.objectStore('chats');
     const index = store.index('urlId');
-    
-    // First get the existing chat data by urlId
+
+    // first get the existing chat data by urlId
     const getRequest = index.get(urlId);
-    
+
     getRequest.onsuccess = () => {
       const chatData = getRequest.result;
+
       if (!chatData) {
         reject(new Error('Chat not found'));
         return;
       }
-      
-      // Update the description and timestamp
+
+      // update the description and timestamp
       const updatedChat = {
         ...chatData,
         description: newDescription,
         timestamp: new Date().toISOString(),
       };
-      
-      // Save the updated chat
+
+      // save the updated chat
       const putRequest = store.put(updatedChat);
       putRequest.onsuccess = () => resolve();
       putRequest.onerror = () => reject(putRequest.error);
     };
-    
+
     getRequest.onerror = () => reject(getRequest.error);
   });
 }
@@ -404,7 +405,7 @@ export async function exportAllChats(db: IDBDatabase): Promise<string> {
     const chatStore = transaction.objectStore('chats');
     const snapshotStore = transaction.objectStore('snapshots');
     const checkpointStore = transaction.objectStore('checkpoints');
-    
+
     const exportData = {
       chats: [] as any[],
       snapshots: [] as any[],
@@ -412,35 +413,40 @@ export async function exportAllChats(db: IDBDatabase): Promise<string> {
       exportDate: new Date().toISOString(),
       version: '1.0',
     };
-    
+
     let completed = 0;
+
     const total = 3;
-    
+
     const checkCompletion = () => {
       completed++;
+
       if (completed === total) {
         resolve(JSON.stringify(exportData, null, 2));
       }
     };
-    
-    // Export chats
+
+    // export chats
     const chatRequest = chatStore.getAll();
+
     chatRequest.onsuccess = () => {
       exportData.chats = chatRequest.result;
       checkCompletion();
     };
     chatRequest.onerror = () => reject(chatRequest.error);
-    
-    // Export snapshots
+
+    // export snapshots
     const snapshotRequest = snapshotStore.getAll();
+
     snapshotRequest.onsuccess = () => {
       exportData.snapshots = snapshotRequest.result;
       checkCompletion();
     };
     snapshotRequest.onerror = () => reject(snapshotRequest.error);
-    
-    // Export checkpoints
+
+    // export checkpoints
     const checkpointRequest = checkpointStore.getAll();
+
     checkpointRequest.onsuccess = () => {
       exportData.checkpoints = checkpointRequest.result;
       checkCompletion();
@@ -455,28 +461,30 @@ export async function deleteAllChats(db: IDBDatabase): Promise<void> {
     const chatStore = transaction.objectStore('chats');
     const snapshotStore = transaction.objectStore('snapshots');
     const checkpointStore = transaction.objectStore('checkpoints');
-    
+
     let completed = 0;
+
     const total = 3;
-    
+
     const checkCompletion = () => {
       completed++;
+
       if (completed === total) {
         resolve();
       }
     };
-    
-    // Clear chats
+
+    // clear chats
     const clearChatsRequest = chatStore.clear();
     clearChatsRequest.onsuccess = () => checkCompletion();
     clearChatsRequest.onerror = () => reject(clearChatsRequest.error);
-    
-    // Clear snapshots
+
+    // clear snapshots
     const clearSnapshotsRequest = snapshotStore.clear();
     clearSnapshotsRequest.onsuccess = () => checkCompletion();
     clearSnapshotsRequest.onerror = () => reject(clearSnapshotsRequest.error);
-    
-    // Clear checkpoints
+
+    // clear checkpoints
     const clearCheckpointsRequest = checkpointStore.clear();
     clearCheckpointsRequest.onsuccess = () => checkCompletion();
     clearCheckpointsRequest.onerror = () => reject(clearCheckpointsRequest.error);

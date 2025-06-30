@@ -1,6 +1,6 @@
 import { map, type MapStore } from 'nanostores';
-import { createScopedLogger } from '~/utils/logger';
 import { workbenchStore } from './workbench';
+import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('SettingsStore');
 
@@ -59,10 +59,10 @@ export class SettingsStore {
   private readonly storageKey: string;
 
   // Main store state
-  public readonly state: MapStore<SettingsState>;
+  readonly state: MapStore<SettingsState>;
 
   // Shortcuts store (kept separate for backward compatibility)
-  public readonly shortcutsStore: MapStore<Shortcuts>;
+  readonly shortcutsStore: MapStore<Shortcuts>;
 
   constructor(config: SettingsStoreConfig = {}) {
     this.config = {
@@ -127,9 +127,9 @@ export class SettingsStore {
   /**
    * Update service tokens
    */
-  public updateServiceTokens(tokens: Partial<ServiceTokens>): void {
+  updateServiceTokens(tokens: Partial<ServiceTokens>): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       serviceTokens: {
@@ -145,21 +145,21 @@ export class SettingsStore {
   /**
    * Get a specific service token
    */
-  public getServiceToken(service: keyof ServiceTokens): string {
+  getServiceToken(service: keyof ServiceTokens): string {
     return this.state.get().serviceTokens[service];
   }
 
   /**
    * Get all service tokens
    */
-  public getServiceTokens(): ServiceTokens {
+  getServiceTokens(): ServiceTokens {
     return this.state.get().serviceTokens;
   }
 
   /**
    * Update shortcuts
    */
-  public updateShortcuts(shortcuts: Partial<Shortcuts>): void {
+  updateShortcuts(shortcuts: Partial<Shortcuts>): void {
     this.shortcutsStore.set({
       ...this.shortcutsStore.get(),
       ...shortcuts,
@@ -169,14 +169,14 @@ export class SettingsStore {
   /**
    * Get current settings state
    */
-  public getState(): SettingsState {
+  getState(): SettingsState {
     return this.state.get();
   }
 
   /**
    * Reset settings to defaults
    */
-  public reset(): void {
+  reset(): void {
     const defaultState: SettingsState = {
       serviceTokens: {
         netlify: '',
@@ -207,15 +207,17 @@ export class SettingsStore {
    * Save settings to localStorage
    */
   private saveSettings(state: SettingsState): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const dataToPersist = {
         serviceTokens: state.serviceTokens,
         shortcuts: state.shortcuts,
         lastUpdated: state.lastUpdated.toISOString(),
       };
-      
+
       localStorage.setItem(this.storageKey, JSON.stringify(dataToPersist));
       logger.debug('Settings saved to storage');
     } catch (error) {
@@ -227,27 +229,30 @@ export class SettingsStore {
    * Load settings from localStorage
    */
   private loadSettings(): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const stored = localStorage.getItem(this.storageKey);
+
       if (stored) {
         const parsed = JSON.parse(stored);
         const currentState = this.state.get();
-        
+
         // Migrate from old format if needed
         const serviceTokens = this.migrateFromOldFormat(parsed);
-        
+
         this.state.set({
           ...currentState,
           serviceTokens,
           shortcuts: parsed.shortcuts || currentState.shortcuts,
           lastUpdated: parsed.lastUpdated ? new Date(parsed.lastUpdated) : new Date(),
         });
-        
+
         // Update shortcuts store
         this.shortcutsStore.set(this.state.get().shortcuts);
-        
+
         logger.debug('Settings loaded from storage');
       }
     } catch (error) {
@@ -269,27 +274,32 @@ export class SettingsStore {
     // If we have old tokens and no new format, use old tokens
     if (!parsed.serviceTokens && (oldTokens.netlify || oldTokens.vercel || oldTokens.github)) {
       logger.debug('Migrating from old token format');
-      
+
       // Clean up old storage
       localStorage.removeItem('bolt_token_netlify');
       localStorage.removeItem('bolt_token_vercel');
       localStorage.removeItem('bolt_token_github');
-      
+
       return oldTokens;
     }
 
-    return parsed.serviceTokens || {
-      netlify: '',
-      vercel: '',
-      github: '',
-    };
+    return (
+      parsed.serviceTokens || {
+        netlify: '',
+        vercel: '',
+        github: '',
+      }
+    );
   }
 
   /**
    * Clear stored settings
    */
   private clearSettings(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     localStorage.removeItem(this.storageKey);
     logger.debug('Settings cleared from storage');
   }
@@ -297,34 +307,39 @@ export class SettingsStore {
   /**
    * Export settings
    */
-  public exportSettings(): string {
+  exportSettings(): string {
     const state = this.state.get();
-    return JSON.stringify({
-      serviceTokens: state.serviceTokens,
-      shortcuts: state.shortcuts,
-      lastUpdated: state.lastUpdated.toISOString(),
-    }, null, 2);
+    return JSON.stringify(
+      {
+        serviceTokens: state.serviceTokens,
+        shortcuts: state.shortcuts,
+        lastUpdated: state.lastUpdated.toISOString(),
+      },
+      null,
+      2,
+    );
   }
 
   /**
    * Import settings
    */
-  public importSettings(settingsJson: string): boolean {
+  importSettings(settingsJson: string): boolean {
     try {
       const parsed = JSON.parse(settingsJson);
       const currentState = this.state.get();
-      
+
       this.state.set({
         ...currentState,
         serviceTokens: parsed.serviceTokens || currentState.serviceTokens,
         shortcuts: parsed.shortcuts || currentState.shortcuts,
         lastUpdated: new Date(),
       });
-      
+
       // Update shortcuts store
       this.shortcutsStore.set(this.state.get().shortcuts);
-      
+
       logger.debug('Settings imported successfully');
+
       return true;
     } catch (error) {
       logger.error('Failed to import settings:', error);

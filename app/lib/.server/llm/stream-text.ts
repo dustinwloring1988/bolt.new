@@ -1,13 +1,13 @@
 import { streamText as _streamText, convertToCoreMessages } from 'ai';
 import { MAX_TOKENS } from './constants';
-import { getSystemPrompt } from './prompts';
-import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
-import { getAPIKey } from '~/lib/.server/llm/api-key';
-import { getAnthropicModel } from '~/lib/.server/llm/model';
+import type { FileMap } from './context-constants';
 import { createSummary } from './create-summary';
+import { getSystemPrompt } from './prompts';
 import { selectContext } from './select-context';
 import { createFilesContext } from './utils';
-import type { FileMap } from './context-constants';
+import { getAPIKey } from '~/lib/.server/llm/api-key';
+import { getAnthropicModel } from '~/lib/.server/llm/model';
+import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
 
 interface ToolResult<Name extends string, Args, Result> {
   state: 'result';
@@ -27,13 +27,17 @@ export type Messages = Message[];
 
 export type StreamingOptions = Omit<Parameters<typeof _streamText>[0], 'model'>;
 
-export function streamText(messages: Messages, env: Env, options?: StreamingOptions & { modelId?: string, chatMode?: 'discuss' | 'build' }) {
+export function streamText(
+  messages: Messages,
+  env: Env,
+  options?: StreamingOptions & { modelId?: string; chatMode?: 'discuss' | 'build' },
+) {
   const modelId = options?.modelId || 'claude-3-5-sonnet-20241022';
   const chatMode = options?.chatMode || 'build';
-  
+
   // Use discuss prompt when in discuss mode, otherwise use build prompt
   const systemPrompt = chatMode === 'discuss' ? discussPrompt() : getSystemPrompt();
-  
+
   return _streamText({
     model: getAnthropicModel(getAPIKey(env), modelId),
     system: systemPrompt,

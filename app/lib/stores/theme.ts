@@ -37,7 +37,7 @@ export class ThemeStore {
   private mediaQuery?: MediaQueryList;
 
   // Main store state
-  public readonly state: WritableAtom<ThemeState>;
+  readonly state: WritableAtom<ThemeState>;
 
   constructor(config: ThemeStoreConfig = {}) {
     this.config = {
@@ -88,9 +88,12 @@ export class ThemeStore {
    * Detect system color scheme preference
    */
   private detectSystemPreference(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      return;
+    }
 
     this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
     const systemPreference: Theme = this.mediaQuery.matches ? 'dark' : 'light';
 
     this.state.set({
@@ -105,11 +108,13 @@ export class ThemeStore {
    * Set up listener for system preference changes
    */
   private setupSystemPreferenceListener(): void {
-    if (!this.mediaQuery || typeof window === 'undefined') return;
+    if (!this.mediaQuery || typeof window === 'undefined') {
+      return;
+    }
 
     this.mediaQuery.addEventListener('change', (event) => {
       const systemPreference: Theme = event.matches ? 'dark' : 'light';
-      
+
       this.state.set({
         ...this.state.get(),
         systemPreference,
@@ -127,9 +132,9 @@ export class ThemeStore {
   /**
    * Set the current theme
    */
-  public setTheme(theme: Theme): void {
+  setTheme(theme: Theme): void {
     const currentState = this.state.get();
-    
+
     this.state.set({
       ...currentState,
       current: theme,
@@ -148,57 +153,59 @@ export class ThemeStore {
   /**
    * Toggle between light and dark themes
    */
-  public toggleTheme(): void {
+  toggleTheme(): void {
     const currentState = this.state.get();
     const newTheme: Theme = currentState.current === 'dark' ? 'light' : 'dark';
-    
+
     this.setTheme(newTheme);
   }
 
   /**
    * Get the effective theme (resolves 'auto' to actual theme)
    */
-  public getEffectiveTheme(): 'light' | 'dark' {
+  getEffectiveTheme(): 'light' | 'dark' {
     const state = this.state.get();
+
     if (state.current === 'auto') {
       // Ensure systemPreference is not 'auto', fallback to 'light' if it is
       return state.systemPreference === 'dark' ? 'dark' : 'light';
     }
+
     return state.current === 'dark' ? 'dark' : 'light';
   }
 
   /**
    * Check if the current theme is dark
    */
-  public isDark(): boolean {
+  isDark(): boolean {
     return this.getEffectiveTheme() === 'dark';
   }
 
   /**
    * Check if the current theme is light
    */
-  public isLight(): boolean {
+  isLight(): boolean {
     return this.getEffectiveTheme() === 'light';
   }
 
   /**
    * Check if the theme is set to auto
    */
-  public isAuto(): boolean {
+  isAuto(): boolean {
     return this.state.get().current === 'auto';
   }
 
   /**
    * Get the current theme state
    */
-  public getState(): ThemeState {
+  getState(): ThemeState {
     return this.state.get();
   }
 
   /**
    * Reset theme to default
    */
-  public reset(): void {
+  reset(): void {
     this.setTheme(this.config.defaultTheme!);
   }
 
@@ -206,13 +213,16 @@ export class ThemeStore {
    * Apply theme to the DOM
    */
   private applyTheme(theme: Theme): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      return;
+    }
 
     const effectiveTheme = theme === 'auto' ? this.state.get().systemPreference : theme;
     const isDark = effectiveTheme === 'dark';
 
     // Update HTML data attribute
     const html = document.querySelector('html');
+
     if (html) {
       html.setAttribute('data-theme', effectiveTheme);
     }
@@ -230,8 +240,10 @@ export class ThemeStore {
    * Persist theme to localStorage
    */
   private persistTheme(theme: Theme): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       localStorage.setItem(this.storageKey, theme);
     } catch (error) {
@@ -243,10 +255,13 @@ export class ThemeStore {
    * Restore theme from localStorage
    */
   private restoreTheme(): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const stored = localStorage.getItem(this.storageKey) as Theme | null;
+
       if (stored && ['light', 'dark', 'auto'].includes(stored)) {
         this.setTheme(stored);
         logger.debug('Theme restored from storage', { theme: stored });
@@ -259,7 +274,7 @@ export class ThemeStore {
   /**
    * Clean up event listeners
    */
-  public destroy(): void {
+  destroy(): void {
     if (this.mediaQuery) {
       this.mediaQuery.removeEventListener('change', () => {});
     }

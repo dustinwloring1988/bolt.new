@@ -1,10 +1,10 @@
 import { generateText, type CoreTool, type GenerateTextResult, type Message } from 'ai';
 import ignore from 'ignore';
+import { getAPIKey } from './api-key';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from './constants';
 import { IGNORE_PATTERNS, type FileMap } from './context-constants';
 import { getAnthropicModel } from './model';
-import { getAPIKey } from './api-key';
 import { createFilesContext, extractCurrentContext, extractPropertiesFromMessage, simplifyBoltActions } from './utils';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDER_LIST } from './constants';
 
 const ig = ignore().add(IGNORE_PATTERNS);
 
@@ -16,9 +16,10 @@ export async function selectContext(props: {
   onFinish?: (resp: GenerateTextResult<Record<string, CoreTool<any, any>>, never>) => void;
 }) {
   const { messages, env: serverEnv, files, summary, onFinish } = props;
+
   let currentModel = DEFAULT_MODEL;
   let currentProvider = DEFAULT_PROVIDER.name;
-  
+
   const processedMessages = messages.map((message) => {
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
@@ -50,6 +51,7 @@ export async function selectContext(props: {
   });
 
   let context = '';
+
   const currentFiles: string[] = [];
   const contextFiles: FileMap = {};
 
@@ -83,7 +85,7 @@ export async function selectContext(props: {
     throw new Error('No user message found');
   }
 
-  // Select files from the list of code files from the project that might be useful for the current request from the user
+  // select files from the list of code files from the project that might be useful for the current request from the user
   const resp = await generateText({
     system: `
         You are a software engineer. You are working on a project. You have access to the following files:
@@ -133,7 +135,15 @@ export async function selectContext(props: {
         * if the buffer is full, you need to exclude files that is not needed and include files that is relevent.
 
         `,
-    model: getAnthropicModel(getAPIKey(serverEnv ?? (() => { throw new Error('Env is required'); })()), currentModel),
+    model: getAnthropicModel(
+      getAPIKey(
+        serverEnv ??
+          (() => {
+            throw new Error('Env is required');
+          })(),
+      ),
+      currentModel,
+    ),
   });
 
   const response = resp.text;

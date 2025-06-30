@@ -17,14 +17,15 @@ class IndexedDBStorage implements StorageUtility {
   private async getDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version);
-      
+
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+
         if (!db.objectStoreNames.contains(this.storeName)) {
           db.createObjectStore(this.storeName);
         }
       };
-      
+
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -37,7 +38,7 @@ class IndexedDBStorage implements StorageUtility {
         const transaction = db.transaction(this.storeName, 'readonly');
         const store = transaction.objectStore(this.storeName);
         const request = store.get(key);
-        
+
         request.onsuccess = () => resolve(request.result || null);
         request.onerror = () => reject(request.error);
       });
@@ -53,7 +54,7 @@ class IndexedDBStorage implements StorageUtility {
         const transaction = db.transaction(this.storeName, 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const request = store.put(value, key);
-        
+
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
@@ -69,7 +70,7 @@ class IndexedDBStorage implements StorageUtility {
         const transaction = db.transaction(this.storeName, 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const request = store.delete(key);
-        
+
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
@@ -120,16 +121,21 @@ class MigrationStorage implements StorageUtility {
     if (this.preferIndexedDB) {
       try {
         const value = await this.indexedDBStorage.getItem(key);
+
         if (value !== null) {
           return value;
         }
-        // Check localStorage as fallback and migrate if found
+
+        // check localStorage as fallback and migrate if found
         const localValue = await this.localStorageWrapper.getItem(key);
+
         if (localValue !== null) {
           await this.indexedDBStorage.setItem(key, localValue);
           await this.localStorageWrapper.removeItem(key);
+
           return localValue;
         }
+
         return null;
       } catch {
         return this.localStorageWrapper.getItem(key);
@@ -143,7 +149,7 @@ class MigrationStorage implements StorageUtility {
     if (this.preferIndexedDB) {
       try {
         await this.indexedDBStorage.setItem(key, value);
-        // Remove from localStorage if it exists
+        // remove from localStorage if it exists
         await this.localStorageWrapper.removeItem(key);
       } catch {
         await this.localStorageWrapper.setItem(key, value);
@@ -158,10 +164,11 @@ class MigrationStorage implements StorageUtility {
       try {
         await this.indexedDBStorage.removeItem(key);
       } catch {
-        // Fallback to localStorage
+        // fallback to localStorage
       }
     }
-    // Always try to remove from localStorage as well
+
+    // always try to remove from localStorage as well
     await this.localStorageWrapper.removeItem(key);
   }
 }
@@ -170,7 +177,7 @@ export function createStorageUtility(): StorageUtility {
   return new MigrationStorage();
 }
 
-// Legacy sync functions for backward compatibility
+// legacy sync functions for backward compatibility
 export function getItemSync(key: string): string | null {
   try {
     return localStorage.getItem(key);

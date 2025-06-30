@@ -24,15 +24,17 @@ export class ChatService {
    */
   static async processFileModifications(input: string): Promise<string> {
     await workbenchStore.saveAllFiles();
+
     const fileModifications = workbenchStore.getFileModifcations();
-    
+
     if (fileModifications !== undefined) {
       const diff = fileModificationsToHTML(fileModifications);
       const content = `${diff}\n\n${input}`;
       workbenchStore.resetAllFileModifications();
+
       return content;
     }
-    
+
     return input;
   }
 
@@ -45,7 +47,7 @@ export class ChatService {
   } {
     const newImages: AttachedImage[] = [];
     const rejectedFiles: string[] = [];
-    
+
     Array.from(files).forEach((file) => {
       if (!validateImageFile(file)) {
         if (!file.type.startsWith('image/')) {
@@ -53,9 +55,10 @@ export class ChatService {
         } else if (file.size > 10 * 1024 * 1024) {
           rejectedFiles.push(`${file.name}: File too large (max 10MB, current: ${formatFileSize(file.size)})`);
         }
+
         return;
       }
-      
+
       const url = URL.createObjectURL(file);
       newImages.push({
         file,
@@ -63,7 +66,7 @@ export class ChatService {
         type: file.type,
       });
     });
-    
+
     return { newImages, rejectedFiles };
   }
 
@@ -72,15 +75,15 @@ export class ChatService {
    */
   static handleImageAttach(files: FileList): AttachedImage[] {
     const { newImages, rejectedFiles } = this.processAttachedImages(files);
-    
+
     if (rejectedFiles.length > 0) {
       toast.error(`Some files were rejected:\n${rejectedFiles.join('\n')}`);
     }
-    
+
     if (newImages.length > 0) {
       toast.success(`${newImages.length} image(s) attached`);
     }
-    
+
     return newImages;
   }
 
@@ -88,7 +91,7 @@ export class ChatService {
    * Clean up image URLs to prevent memory leaks
    */
   static cleanupImageUrls(images: AttachedImage[]): void {
-    images.forEach(image => {
+    images.forEach((image) => {
       URL.revokeObjectURL(image.url);
     });
   }
@@ -101,23 +104,18 @@ export class ChatService {
       return content;
     }
 
-    const imageDescriptions = attachedImages.map((img, index) => 
-      `[Image ${index + 1}: ${img.file.name}]`
-    ).join(' ');
-    
+    const imageDescriptions = attachedImages.map((img, index) => `[Image ${index + 1}: ${img.file.name}]`).join(' ');
+
     return `${imageDescriptions}\n\n${content}`;
   }
 
   /**
    * Create a complete message object for sending
    */
-  static async createMessage(
-    input: string, 
-    attachedImages: AttachedImage[]
-  ): Promise<Message> {
+  static async createMessage(input: string, attachedImages: AttachedImage[]): Promise<Message> {
     const processedContent = await this.processFileModifications(input);
     const finalContent = this.formatMessageWithImages(processedContent, attachedImages);
-    
+
     return {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       role: 'user',
@@ -139,4 +137,4 @@ export class ChatService {
   static handleChatFinish(): void {
     logger.debug('Finished streaming');
   }
-} 
+}

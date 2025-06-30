@@ -15,7 +15,7 @@ export interface BoltTerminalRef {
 export interface BoltTerminalProps {
   className?: string;
   theme: Theme;
-  outputBuffer: string[]; // Array of strings to display (AI output)
+  outputBuffer: string[]; // array of strings to display (AI output)
 }
 
 export const BoltTerminal = memo(
@@ -33,7 +33,7 @@ export const BoltTerminal = memo(
       const terminal = new XTerm({
         cursorBlink: false,
         convertEol: true,
-        disableStdin: true, // Always readonly
+        disableStdin: true, // always readonly
         theme: getTerminalTheme({ cursor: '#00000000' }),
         fontSize: 12,
         fontFamily: 'Menlo, courier-new, courier, monospace',
@@ -53,8 +53,8 @@ export const BoltTerminal = memo(
 
       logger.info('Attach BoltTerminal');
 
-      // Initial output
-      outputBuffer.forEach(line => terminal.writeln(line));
+      // initial output
+      outputBuffer.forEach((line) => terminal.writeln(line));
       lastBufferLength.current = outputBuffer.length;
 
       return () => {
@@ -63,11 +63,15 @@ export const BoltTerminal = memo(
       };
     }, []);
 
-    // Update terminal when outputBuffer changes
+    // update terminal when outputBuffer changes
     useEffect(() => {
       const terminal = terminalRef.current;
-      if (!terminal) return;
-      // Only write new lines
+
+      if (!terminal) {
+        return;
+      }
+
+      // only write new lines
       for (let i = lastBufferLength.current; i < outputBuffer.length; i++) {
         terminal.writeln(outputBuffer[i]);
       }
@@ -90,5 +94,5 @@ export const BoltTerminal = memo(
     }, []);
 
     return <div className={className} ref={terminalElementRef} />;
-  })
-); 
+  }),
+);

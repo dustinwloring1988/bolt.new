@@ -1,18 +1,18 @@
 import { useStore } from '@nanostores/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  deploymentAlerts, 
+import { IconButton } from './IconButton';
+import {
+  deploymentAlerts,
   showDeploymentAlerts,
   removeDeploymentAlert,
   hideDeploymentAlerts,
-  type DeploymentAlert
+  type DeploymentAlert,
 } from '~/lib/stores/deploymentAlerts';
-import { IconButton } from './IconButton';
 
 const alertVariants = {
   initial: { opacity: 0, y: -50, scale: 0.9 },
   animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -20, scale: 0.95 }
+  exit: { opacity: 0, y: -20, scale: 0.95 },
 };
 
 const panelVariants = {
@@ -114,29 +114,20 @@ function DeploymentAlertItem({ alert }: { alert: DeploymentAlert }) {
           <span className={`${alertIcon} text-lg ${colors.icon}`} />
           <span className={`${providerIcon} text-sm ${colors.icon}`} />
         </div>
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h4 className={`font-medium text-sm ${colors.title}`}>
-              {alert.title}
-            </h4>
+            <h4 className={`font-medium text-sm ${colors.title}`}>{alert.title}</h4>
             <div className="flex items-center gap-1">
               {alert.status === 'deploying' && (
                 <div className="animate-spin w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full" />
               )}
-              <IconButton
-                icon="i-ph:x"
-                size="sm"
-                onClick={handleDismiss}
-                className="hover:bg-gray-100"
-              />
+              <IconButton icon="i-ph:x" size="sm" onClick={handleDismiss} className="hover:bg-gray-100" />
             </div>
           </div>
-          
-          <p className={`text-sm mt-1 ${colors.message}`}>
-            {alert.message}
-          </p>
-          
+
+          <p className={`text-sm mt-1 ${colors.message}`}>{alert.message}</p>
+
           {alert.deploymentUrl && (
             <button
               onClick={handleOpenUrl}
@@ -146,10 +137,8 @@ function DeploymentAlertItem({ alert }: { alert: DeploymentAlert }) {
               View Deployment
             </button>
           )}
-          
-          <div className="text-xs text-gray-500 mt-2">
-            {new Date(alert.timestamp).toLocaleTimeString()}
-          </div>
+
+          <div className="text-xs text-gray-500 mt-2">{new Date(alert.timestamp).toLocaleTimeString()}</div>
         </div>
       </div>
     </motion.div>
@@ -159,9 +148,9 @@ function DeploymentAlertItem({ alert }: { alert: DeploymentAlert }) {
 export function DeploymentAlerts() {
   const alerts = useStore(deploymentAlerts);
   const showAlerts = useStore(showDeploymentAlerts);
-  
+
   const alertList = Object.values(alerts).sort((a, b) => b.timestamp - a.timestamp);
-  
+
   if (!showAlerts || alertList.length === 0) {
     return null;
   }
@@ -180,14 +169,9 @@ export function DeploymentAlerts() {
             <span className="i-ph:bell-duotone text-lg" />
             Deployment Alerts
           </h3>
-          <IconButton
-            icon="i-ph:x"
-            size="sm"
-            onClick={hideDeploymentAlerts}
-            className="hover:bg-gray-100"
-          />
+          <IconButton icon="i-ph:x" size="sm" onClick={hideDeploymentAlerts} className="hover:bg-gray-100" />
         </div>
-        
+
         <AnimatePresence mode="popLayout">
           {alertList.map((alert) => (
             <DeploymentAlertItem key={alert.id} alert={alert} />
@@ -198,22 +182,22 @@ export function DeploymentAlerts() {
   );
 }
 
-// Toast-style alerts that appear at the top of the screen
+// toast-style alerts that appear at the top of the screen
 export function DeploymentToasts() {
   const alerts = useStore(deploymentAlerts);
-  
-  // Only show recent alerts (last 30 seconds) as toasts
+
+  // only show recent alerts (last 30 seconds) as toasts
   const recentAlerts = Object.values(alerts)
-    .filter(alert => Date.now() - alert.timestamp < 30000)
+    .filter((alert) => Date.now() - alert.timestamp < 30000)
     .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 3); // Limit to 3 toasts
+    .slice(0, 3); // limit to 3 toasts
 
   return (
     <div className="fixed top-4 right-4 w-80 z-50 space-y-2">
       <AnimatePresence>
         {recentAlerts.map((alert) => {
           const colors = getAlertColors(alert.type);
-          
+
           return (
             <motion.div
               key={alert.id}
@@ -225,12 +209,8 @@ export function DeploymentToasts() {
               <div className="flex items-center gap-3">
                 <span className={`${getAlertIcon(alert.type)} text-lg ${colors.icon}`} />
                 <div className="flex-1 min-w-0">
-                  <p className={`font-medium text-sm ${colors.title}`}>
-                    {alert.title}
-                  </p>
-                  <p className={`text-xs ${colors.message} truncate`}>
-                    {alert.message}
-                  </p>
+                  <p className={`font-medium text-sm ${colors.title}`}>{alert.title}</p>
+                  <p className={`text-xs ${colors.message} truncate`}>{alert.message}</p>
                 </div>
                 <IconButton
                   icon="i-ph:x"

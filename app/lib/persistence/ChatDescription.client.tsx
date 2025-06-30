@@ -21,6 +21,7 @@ export function ChatDescription() {
     }
 
     const success = await updateDescription(editValue.trim());
+
     if (success) {
       setIsEditing(false);
     }
@@ -31,15 +32,18 @@ export function ChatDescription() {
     setEditValue('');
   }, []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSave();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCancel();
-    }
-  }, [handleSave, handleCancel]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSave();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancel();
+      }
+    },
+    [handleSave, handleCancel],
+  );
 
   if (isEditing) {
     return (

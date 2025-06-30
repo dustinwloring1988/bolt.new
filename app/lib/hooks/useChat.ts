@@ -1,13 +1,13 @@
+import * as nodePath from 'node:path';
+import React from 'react';
 import type { Message } from 'ai';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useChat as useAIChat } from 'ai/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChatService, type AttachedImage } from '~/lib/services/chatService';
 import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
-import { ChatService, type AttachedImage } from '~/lib/services/chatService';
-import { createScopedLogger } from '~/utils/logger';
 import { webcontainer } from '~/lib/webcontainer';
-import * as nodePath from 'node:path';
-import { toast } from 'react-toastify';
+import { createScopedLogger } from '~/utils/logger';
 
 const logger = createScopedLogger('useChat');
 
@@ -17,7 +17,7 @@ export interface UseChatOptions {
 }
 
 export interface UseChatReturn {
-  // Chat state
+  // chat state
   messages: Message[];
   isLoading: boolean;
   input: string;
@@ -25,20 +25,20 @@ export interface UseChatReturn {
   attachedImages: AttachedImage[];
   selectedModel: string;
   chatMode: 'discuss' | 'build';
-  
-  // Chat actions
+
+  // chat actions
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   setInput: (input: string) => void;
   sendMessage: (event: React.UIEvent, messageInput?: string) => Promise<void>;
   handleImageAttach: (files: FileList) => void;
   handleImageRemove: (index: number) => void;
   abort: () => void;
-  
-  // Model and mode controls
+
+  // model and mode controls
   setSelectedModel: (model: string) => void;
   setChatMode: (mode: 'discuss' | 'build') => void;
-  
-  // Animation and UI
+
+  // animation and UI
   runAnimation: () => Promise<void>;
   scrollTextArea: () => void;
 }
@@ -49,13 +49,16 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
   const [selectedModel, setSelectedModel] = useState('claude-3-5-sonnet-20241022');
   const [chatMode, setChatMode] = useState<'discuss' | 'build'>('build');
 
-  // Memoize the body object to prevent unnecessary re-renders
-  const chatBody = useMemo(() => ({
-    model: selectedModel,
-    chatMode,
-  }), [selectedModel, chatMode]);
+  // memoize the body object to prevent unnecessary re-renders
+  const chatBody = useMemo(
+    () => ({
+      model: selectedModel,
+      chatMode,
+    }),
+    [selectedModel, chatMode],
+  );
 
-  // Memoize the callbacks to prevent useChat from reinitializing
+  // memoize the callbacks to prevent useChat from reinitializing
   const onError = useCallback((error: Error) => {
     ChatService.handleChatError(error);
   }, []);
@@ -82,7 +85,7 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
   }, [chatStarted]);
 
   const scrollTextArea = useCallback(() => {
-    // This will be implemented by the component that uses this hook
+    // this will be implemented by the component that uses this hook
   }, []);
 
   const abort = useCallback(() => {
@@ -93,47 +96,55 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
 
   const handleImageAttach = useCallback((files: FileList) => {
     const newImages = ChatService.handleImageAttach(files);
-    setAttachedImages(prev => [...prev, ...newImages]);
+    setAttachedImages((prev: AttachedImage[]) => [...prev, ...newImages]);
   }, []);
 
   const handleImageRemove = useCallback((index: number) => {
-    setAttachedImages(prev => {
+    setAttachedImages((prev: AttachedImage[]) => {
       const image = prev[index];
+
       if (image) {
         URL.revokeObjectURL(image.url);
       }
-      return prev.filter((_, i) => i !== index);
+
+      return prev.filter((_: AttachedImage, i: number) => i !== index);
     });
   }, []);
 
-  const sendMessage = useCallback(async (_event: React.UIEvent, messageInput?: string) => {
-    const _input = messageInput || input;
-    if ((_input.length === 0 && attachedImages.length === 0) || isLoading) {
-      return;
-    }
+  const sendMessage = useCallback(
+    async (_event: React.UIEvent, messageInput?: string) => {
+      const _input = messageInput || input;
 
-    // Reset aborted state by starting a new chat
-    if (chatStore.getState().aborted) {
-      chatStore.startChat();
-    }
-    runAnimation();
+      if ((_input.length === 0 && attachedImages.length === 0) || isLoading) {
+        return;
+      }
 
-    const message = await ChatService.createMessage(_input, attachedImages);
+      // reset aborted state by starting a new chat
+      if (chatStore.getState().aborted) {
+        chatStore.startChat();
+      }
 
-    setInput('');
-    setAttachedImages([]);
-    
-    // Clean up image URLs
-    ChatService.cleanupImageUrls(attachedImages);
-    
-    // Use append to send the message and update UI
-    await append(message);
-  }, [input, attachedImages, isLoading, append, setInput, runAnimation]);
+      runAnimation();
 
-  // Function to load files from localStorage
+      const message = await ChatService.createMessage(_input, attachedImages);
+
+      setInput('');
+      setAttachedImages([]);
+
+      // clean up image URLs
+      ChatService.cleanupImageUrls(attachedImages);
+
+      // use append to send the message and update UI
+      await append(message);
+    },
+    [input, attachedImages, isLoading, append, setInput, runAnimation],
+  );
+
+  // function to load files from localStorage
   const loadPendingFiles = useCallback(async () => {
     try {
       const pendingFilesData = localStorage.getItem('bolt_pending_files');
+
       if (!pendingFilesData) {
         return;
       }
@@ -144,17 +155,19 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
       if (!files || typeof files !== 'object') {
         console.warn('Invalid file data in localStorage');
         localStorage.removeItem('bolt_pending_files');
+
         return;
       }
 
       console.log(`Loading ${Object.keys(files).length} files from ${type} source...`);
-      
-      // Get webcontainer instance
+
+      // get webcontainer instance
       const container = await webcontainer;
-      
-      // Clear existing files first - remove all files in the workdir
+
+      // clear existing files first - remove all files in the workdir
       try {
         const filesInWorkdir = await container.fs.readdir('.', { withFileTypes: true });
+
         for (const file of filesInWorkdir) {
           if (file.isFile()) {
             await container.fs.rm(file.name, { force: true });
@@ -165,68 +178,69 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
       } catch (clearError) {
         console.warn('Failed to clear existing files:', clearError);
       }
-      
-      // Create new files in the webcontainer
+
+      // create new files in the webcontainer
       let createdFiles = 0;
+
       for (const [path, content] of Object.entries(files)) {
         try {
-          // Create directory structure if needed
+          // create directory structure if needed
           const folder = nodePath.dirname(path);
+
           if (folder !== '.') {
             await container.fs.mkdir(folder, { recursive: true });
           }
-          
-          // Write the file
+
+          // write the file
           await container.fs.writeFile(path, content as string);
           createdFiles++;
         } catch (fileError) {
           console.warn(`Failed to create file ${path}:`, fileError);
         }
       }
-      
-      // Show the workbench
+
+      // show the workbench
       workbenchStore.setShowWorkbench(true);
-      
+
       const sourceName = type === 'github' ? repoName : folderName;
       console.log(`Successfully loaded ${createdFiles} files from ${sourceName}`);
-      
-      // Clean up localStorage
+
+      // clean up localStorage
       localStorage.removeItem('bolt_pending_files');
-      
     } catch (error) {
       console.error('Failed to load pending files:', error);
       localStorage.removeItem('bolt_pending_files');
     }
   }, []);
 
-  // Handle template parameter from URL
+  // handle template parameter from URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const templateParam = urlParams.get('template');
     const loadFilesParam = urlParams.get('loadFiles');
-    
+
     if (templateParam && !chatStarted && messages.length === 0 && !isLoading) {
       const decodedTemplate = decodeURIComponent(templateParam);
-      
-      // Set chat as started first
+
+      // set chat as started first
       setChatStarted(true);
       chatStore.startChat();
-      
-      // Run animation to transition from intro to chat
+
+      // run animation to transition from intro to chat
       runAnimation();
-      
-      // Load files if requested
+
+      // load files if requested
       if (loadFilesParam === 'true') {
         loadPendingFiles();
       }
-      
-      // Send the template prompt automatically
+
+      // send the template prompt automatically
       append({
         role: 'user',
         content: decodedTemplate,
       });
-      
-      // Clean up the URL
+
+      // clean up the URL
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('template');
       newUrl.searchParams.delete('loadFiles');
@@ -249,7 +263,7 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
   }, [messages, initialMessages.length, storeMessageHistory]);
 
   return {
-    // Chat state
+    // chat state
     messages,
     isLoading,
     input,
@@ -257,21 +271,21 @@ export function useChat({ initialMessages, storeMessageHistory }: UseChatOptions
     attachedImages,
     selectedModel,
     chatMode,
-    
-    // Chat actions
+
+    // chat actions
     handleInputChange,
     setInput,
     sendMessage,
     handleImageAttach,
     handleImageRemove,
     abort,
-    
-    // Model and mode controls
+
+    // model and mode controls
     setSelectedModel,
     setChatMode,
-    
-    // Animation and UI
+
+    // animation and UI
     runAnimation,
     scrollTextArea,
   };
-} 
+}

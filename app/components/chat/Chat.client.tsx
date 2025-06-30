@@ -114,6 +114,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   // Override the scrollTextArea function from the hook
   const enhancedScrollTextArea = useCallback(() => {
     const textarea = textareaRef.current;
+
     if (textarea) {
       textarea.scrollTop = textarea.scrollHeight;
     }
@@ -139,11 +140,14 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
   }, [input, textareaRef, TEXTAREA_MAX_HEIGHT]);
 
   // Enhanced sendMessage that includes enhancer reset
-  const enhancedSendMessage = useCallback(async (event: React.UIEvent, messageInput?: string) => {
-    await sendMessage(event, messageInput);
-    resetEnhancer();
-    textareaRef.current?.blur();
-  }, [sendMessage, resetEnhancer]);
+  const enhancedSendMessage = useCallback(
+    async (event: React.UIEvent, messageInput?: string) => {
+      await sendMessage(event, messageInput);
+      resetEnhancer();
+      textareaRef.current?.blur();
+    },
+    [sendMessage, resetEnhancer],
+  );
 
   // Enhanced enhancePrompt callback
   const enhancePromptCallback = useCallback(() => {
@@ -161,6 +165,7 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
       if (message.role === 'user') {
         return message;
       }
+
       return {
         ...message,
         content: parsedMessages[i] || '',
@@ -170,60 +175,64 @@ export const ChatImpl = memo(({ initialMessages, storeMessageHistory }: ChatProp
 
   useEffect(() => {
     // Only parse messages if we have assistant messages to parse
-    const hasAssistantMessages = messages.some(msg => msg.role === 'assistant');
+    const hasAssistantMessages = messages.some((msg) => msg.role === 'assistant');
+
     if (hasAssistantMessages) {
       parseMessages(messages, isLoading);
     }
   }, [messages, isLoading, parseMessages]);
 
   // Memoize BaseChat props to prevent unnecessary re-renders
-  const baseChatProps = useMemo(() => ({
-    ref: animationScope,
-    textareaRef,
-    input,
-    showChat,
-    chatStarted,
-    isStreaming: isLoading,
-    enhancingPrompt,
-    promptEnhanced,
-    attachedImages,
-    sendMessage: enhancedSendMessage,
-    messageRef,
-    scrollRef,
-    handleInputChange,
-    handleImageAttach,
-    handleImageRemove,
-    handleStop: abort,
-    messages: transformedMessages,
-    enhancePrompt: enhancePromptCallback,
-    model: selectedModel,
-    onModelChange: setSelectedModel,
-    chatMode,
-    setChatMode,
-  }), [
-    animationScope,
-    textareaRef,
-    input,
-    showChat,
-    chatStarted,
-    isLoading,
-    enhancingPrompt,
-    promptEnhanced,
-    attachedImages,
-    enhancedSendMessage,
-    messageRef,
-    scrollRef,
-    handleInputChange,
-    handleImageAttach,
-    handleImageRemove,
-    abort,
-    transformedMessages,
-    enhancePromptCallback,
-    selectedModel,
-    setSelectedModel,
-    chatMode,
-    setChatMode,
-  ]);
+  const baseChatProps = useMemo(
+    () => ({
+      ref: animationScope,
+      textareaRef,
+      input,
+      showChat,
+      chatStarted,
+      isStreaming: isLoading,
+      enhancingPrompt,
+      promptEnhanced,
+      attachedImages,
+      sendMessage: enhancedSendMessage,
+      messageRef,
+      scrollRef,
+      handleInputChange,
+      handleImageAttach,
+      handleImageRemove,
+      handleStop: abort,
+      messages: transformedMessages,
+      enhancePrompt: enhancePromptCallback,
+      model: selectedModel,
+      onModelChange: setSelectedModel,
+      chatMode,
+      setChatMode,
+    }),
+    [
+      animationScope,
+      textareaRef,
+      input,
+      showChat,
+      chatStarted,
+      isLoading,
+      enhancingPrompt,
+      promptEnhanced,
+      attachedImages,
+      enhancedSendMessage,
+      messageRef,
+      scrollRef,
+      handleInputChange,
+      handleImageAttach,
+      handleImageRemove,
+      abort,
+      transformedMessages,
+      enhancePromptCallback,
+      selectedModel,
+      setSelectedModel,
+      chatMode,
+      setChatMode,
+    ],
+  );
 
   return <BaseChat {...baseChatProps} />;
 });

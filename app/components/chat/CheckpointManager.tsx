@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { Dialog, DialogRoot, DialogTitle, DialogDescription, DialogButton } from '~/components/ui/Dialog';
+import { IconButton } from '~/components/ui/IconButton';
 import type { Checkpoint } from '~/lib/persistence/types';
 import { useChatHistory } from '~/lib/persistence/useChatHistory';
-import { IconButton } from '~/components/ui/IconButton';
-import { Dialog, DialogRoot, DialogTitle, DialogDescription, DialogButton } from '~/components/ui/Dialog';
 
 interface CheckpointManagerProps {
   isOpen: boolean;
@@ -23,6 +23,7 @@ export function CheckpointManager({ isOpen, onClose }: CheckpointManagerProps) {
 
   const refreshCheckpoints = useCallback(async () => {
     setLoading(true);
+
     try {
       const loadedCheckpoints = await loadCheckpoints();
       setCheckpoints(loadedCheckpoints);
@@ -79,7 +80,9 @@ export function CheckpointManager({ isOpen, onClose }: CheckpointManagerProps) {
     return new Date(timestamp).toLocaleString();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -91,9 +94,7 @@ export function CheckpointManager({ isOpen, onClose }: CheckpointManagerProps) {
       >
         <div className="flex items-center justify-between p-6 border-b border-bolt-elements-borderColor">
           <div>
-            <h2 className="text-xl font-semibold text-bolt-elements-textPrimary">
-              Checkpoints & Rewind
-            </h2>
+            <h2 className="text-xl font-semibold text-bolt-elements-textPrimary">Checkpoints & Rewind</h2>
             <p className="text-sm text-bolt-elements-textSecondary mt-1">
               Save and restore chat messages and workbench state
             </p>
@@ -105,11 +106,7 @@ export function CheckpointManager({ isOpen, onClose }: CheckpointManagerProps) {
               onClick={() => setShowCreateDialog(true)}
               className="bg-bolt-elements-button-primary-background hover:bg-bolt-elements-button-primary-backgroundHover"
             />
-            <IconButton
-              icon="i-ph:x"
-              title="Close"
-              onClick={onClose}
-            />
+            <IconButton icon="i-ph:x" title="Close" onClick={onClose} />
           </div>
         </div>
 
@@ -136,9 +133,7 @@ export function CheckpointManager({ isOpen, onClose }: CheckpointManagerProps) {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium text-bolt-elements-textPrimary">
-                          {checkpoint.name}
-                        </h3>
+                        <h3 className="font-medium text-bolt-elements-textPrimary">{checkpoint.name}</h3>
                         {checkpoint.isAutoSave && (
                           <span className="text-xs bg-bolt-elements-button-secondary-background text-bolt-elements-button-secondary-text px-2 py-1 rounded">
                             Auto-save
@@ -146,12 +141,11 @@ export function CheckpointManager({ isOpen, onClose }: CheckpointManagerProps) {
                         )}
                       </div>
                       {checkpoint.description && (
-                        <p className="text-sm text-bolt-elements-textSecondary mb-2">
-                          {checkpoint.description}
-                        </p>
+                        <p className="text-sm text-bolt-elements-textSecondary mb-2">{checkpoint.description}</p>
                       )}
                       <div className="text-xs text-bolt-elements-textTertiary">
-                        {formatTimestamp(checkpoint.timestamp)} • {checkpoint.messageCount} messages • {Object.keys(checkpoint.files).length} files
+                        {formatTimestamp(checkpoint.timestamp)} • {checkpoint.messageCount} messages •{' '}
+                        {Object.keys(checkpoint.files).length} files
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
@@ -234,10 +228,7 @@ export function CheckpointManager({ isOpen, onClose }: CheckpointManagerProps) {
             <DialogButton type="secondary" onClick={() => setDeleteConfirm(null)}>
               Cancel
             </DialogButton>
-            <DialogButton 
-              type="danger" 
-              onClick={() => deleteConfirm && handleDeleteCheckpoint(deleteConfirm)}
-            >
+            <DialogButton type="danger" onClick={() => deleteConfirm && handleDeleteCheckpoint(deleteConfirm)}>
               Delete
             </DialogButton>
           </div>
