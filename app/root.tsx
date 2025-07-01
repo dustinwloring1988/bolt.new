@@ -3,12 +3,13 @@ import type { LinksFunction } from '@remix-run/cloudflare';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from '@remix-run/react';
 import tailwindReset from '@unocss/reset/tailwind-compat.css?url';
 import xtermStyles from '@xterm/xterm/css/xterm.css?url';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import reactToastifyStyles from 'react-toastify/dist/ReactToastify.css?url';
 import { createHead } from 'remix-island';
 import { themeStore } from './lib/stores/theme';
 import globalStyles from './styles/index.scss?url';
 import { stripIndents } from './utils/stripIndent';
+import { BrowserSupportModal } from './components/ui/BrowserSupportModal';
 
 import 'virtual:uno.css';
 
@@ -78,6 +79,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function isSupportedBrowser() {
+  const userAgent = window.navigator.userAgent;
+  const isChromiumBased = /Chrome|Chromium|Edg/.test(userAgent);
+  return isChromiumBased;
+}
+
 export default function App() {
-  return <Outlet />;
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    if (!isSupportedBrowser()) {
+      setShowModal(true);
+    }
+  }, []);
+
+  return (
+    <>
+      {showModal && <BrowserSupportModal onClose={() => setShowModal(false)} />}
+      <Outlet />
+    </>
+  );
 }
